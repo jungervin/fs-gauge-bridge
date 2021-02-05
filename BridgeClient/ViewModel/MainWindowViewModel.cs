@@ -59,7 +59,7 @@ namespace BridgeClient.ViewModel
                 isSimConnected,
                 acTitle,
                 simBridgeOps ,
-                bridgeQueueLength,
+               // bridgeQueueLength,
                 bridgeLatency,
                 trackedVAriables,
             };
@@ -80,8 +80,8 @@ namespace BridgeClient.ViewModel
 
                 trackedVAriables.Value = SimConnect.All.Count.ToString();
                
-                bridgeQueueLength.Value = SimConnect.QueueLength().ToString();
-                bridgeQueueLength.IsOK = SimConnect.QueueLength() < 200;
+              //  bridgeQueueLength.Value = SimConnect.QueueLength().ToString();
+              //  bridgeQueueLength.IsOK = SimConnect.QueueLength() < 200;
                 bridgeLatency.Value = SimConnect.Latency + "ms";
                 bridgeLatency.IsOK = SimConnect.Latency < 1000;
 

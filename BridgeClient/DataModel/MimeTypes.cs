@@ -60,7 +60,7 @@ namespace BridgeClient.DataModel
         {".sea", "application/x-sea"},
         {".shtml", "text/html"},
         {".sit", "application/x-stuffit"},
-        {".svg", "application/image/svg+xml"},
+        {".svg", "image/svg+xml"},
         {".swf", "application/x-shockwave-flash"},
         {".tcl", "application/x-tcl"},
         {".tk", "application/x-tcl"},

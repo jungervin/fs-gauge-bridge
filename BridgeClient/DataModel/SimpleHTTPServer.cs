@@ -88,7 +88,7 @@ class SimpleHTTPServer
 
             var names = JsonConvert.DeserializeObject<GetSimVarValueData[]>(text);
 
-            SimConnectViewModel.Instance.Read(names.ToList());
+            SimConnectViewModel.Instance.AdviseVariables(names.ToList());
 
             var json = SimConnectViewModel.Instance.GetJson();
             var bytes = Encoding.UTF8.GetBytes(json);

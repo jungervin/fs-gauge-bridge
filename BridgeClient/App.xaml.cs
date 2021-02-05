@@ -2,12 +2,9 @@
 using BridgeClient.ViewModel;
 using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Windows;
-using System.Windows.Controls;
 
 namespace BridgeClient
 {
@@ -16,7 +13,6 @@ namespace BridgeClient
         private SimpleHTTPServer _server;
 
         private Window _logWindow = null;
-        private Window _varWindow = null;
         private LogWindowViewModel _logVm = new LogWindowViewModel();
         private SimConnectViewModel _simConnect;
 
@@ -75,17 +71,8 @@ namespace BridgeClient
 
         private void OpenVarList()
         {
-            if (_varWindow != null)
-            {
-                _varWindow.Topmost = true;
-                _varWindow.Topmost = false;
-            }
-            else
-            {
-                _varWindow = new VariableListWindow { DataContext = new VariableListWindowViewModel(_simConnect) };
-                _varWindow.Closed += (_, __) => _varWindow = null;
-                _varWindow.Show();
-            }
+            var varWindow = new VariableListWindow { DataContext = new VariableListWindowViewModel(_simConnect) };
+            varWindow.Show();
         }
     }
 }

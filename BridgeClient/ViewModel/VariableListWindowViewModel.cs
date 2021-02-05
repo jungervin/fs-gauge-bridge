@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Threading;
 
 namespace BridgeClient.ViewModel
@@ -42,6 +40,8 @@ namespace BridgeClient.ViewModel
 
     class VariableListWindowViewModel : BaseViewModel
     {
+        public string Input { get => Get<string>(); set => Set(value); }
+
         public ObservableCollection<VariableItem> Variables { get => Get<ObservableCollection<VariableItem>>(); set => Set(value); }
 
         private Dictionary<string, VariableItem> m_variables = new Dictionary<string, VariableItem>();
@@ -57,6 +57,14 @@ namespace BridgeClient.ViewModel
                 var all = simConnect.GetAllSafe().OrderBy(x => x.Key);
                 foreach (var kv in all)
                 {
+                    if (!string.IsNullOrWhiteSpace(Input))
+                    {
+                        if (kv.Key.Trim().ToLower().IndexOf(Input.Trim().ToLower()) < 0)
+                        {
+                            continue;
+                        }
+                    }
+
                     if (m_variables.ContainsKey(kv.Key))
                     {
                         m_variables[kv.Key].Value = kv.Value.ToString();
@@ -70,6 +78,18 @@ namespace BridgeClient.ViewModel
             };
             t.Start();
         }
+
+        protected override void OnPropertyChanged(string name)
+        {
+            base.OnPropertyChanged(name);
+
+            if (name == nameof(Input))
+            {
+                Variables.Clear();
+                m_variables.Clear();
+            }
+        }
+
     }
 }
 

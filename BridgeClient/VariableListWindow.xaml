@@ -34,7 +34,12 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:VariableListWindowViewModel}">
             <Grid>
-                <ListView ItemsSource="{Binding Variables}" />
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBox Text="{Binding Input, UpdateSourceTrigger=PropertyChanged}" />
+                <ListView Grid.Row="1" ItemsSource="{Binding Variables}" />
             </Grid>
         </DataTemplate>
     </Window.Resources>

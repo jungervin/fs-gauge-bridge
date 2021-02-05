@@ -70,12 +70,14 @@ function CreateSimVarBridge() {
 
     function GetGameVarValue(name, unit, param1 = 0, param2 = 0) {
         if (!name && unit === "GlassCockpitSettings") {
-            return {
+            var ret = {
                 // TODO: this is cockpit.cfg
                 AirSpeed: {
-                    Initialized: false,
+                    Initialized: true,
+                    ...window.cockpitcfg
                 }
             };
+            return ret;
         }
 
         if (unit.toLowerCase() === "boolean")

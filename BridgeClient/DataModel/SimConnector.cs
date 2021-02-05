@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Windows.Threading;
 
 namespace BridgeClient.DataModel
 {
@@ -28,13 +27,27 @@ namespace BridgeClient.DataModel
         [SimLink(Name = "HSI STATION IDENT", Type = null)]
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
         public string hsi_station_ident;
+        [SimLink(Name = "GPS WP PREV ID", Type = null)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string gps_wp_prev_id;
         [SimLink(Name = "GPS WP NEXT ID", Type = null)]
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
         public string gps_wp_next_id;
         [SimLink(Name = "ATC MODEL", Type = null)]
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
         public string atc_model;
-
+        [SimLink(Name = "NAV IDENT:1", Type = null)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string nav_ident_1;
+        [SimLink(Name = "NAV IDENT:2", Type = null)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string nav_ident_2;
+        [SimLink(Name = "NAV IDENT:3", Type = null)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string nav_ident_3;
+        [SimLink(Name = "NAV IDENT:4", Type = null)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string nav_ident_4;
     }
 
     public class SimConnector : NativeWindow
