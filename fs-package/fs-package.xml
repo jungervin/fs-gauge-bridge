@@ -1,0 +1,24 @@
+<AssetPackage Name="fs-gauge-bridge" Version="1.0.0">
+	<ItemSettings>
+		<ContentType>CUSTOM</ContentType>
+		<Title>fs-gauge-bridge</Title>
+		<Manufacturer>davux3</Manufacturer>
+		<Creator>davux3</Creator>
+		<Description/>
+	</ItemSettings>
+	<Flags>
+		<VisibleInStore>false</VisibleInStore>
+		<CanBeReferenced>false</CanBeReferenced>
+	</Flags>
+	<AssetGroups>
+		<AssetGroup Name="fs-gauge-bridge">
+			<Type>Copy</Type>
+			<Flags>
+				<FSXCompatibility>false</FSXCompatibility>
+			</Flags>
+			<AssetDir>PackageSources\</AssetDir>
+			<OutputDir>.\</OutputDir>
+		</AssetGroup>
+	</AssetGroups>
+</AssetPackage>
+

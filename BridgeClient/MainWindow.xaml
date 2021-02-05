@@ -4,57 +4,87 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:BridgeClient.ViewModel"
-        Title="MainWindow"
-        Width="800"
+        Title="{Binding Title}"
+        Width="450"
         Height="450"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
         mc:Ignorable="d">
     <Window.Resources>
         <DataTemplate DataType="{x:Type vm:MainWindowViewModel}">
             <Grid>
+                <Grid.Resources>
+                    <Style BasedOn="{StaticResource {x:Type Label}}" TargetType="Label">
+                        <Setter Property="FontSize" Value="15" />
+                    </Style>
+                    <Style BasedOn="{StaticResource {x:Type Button}}" TargetType="Button">
+                        <Setter Property="FontSize" Value="15" />
+                        <Setter Property="HorizontalAlignment" Value="Stretch" />
+                        <Setter Property="HorizontalContentAlignment" Value="Center" />
+                        <Setter Property="Margin" Value="2" />
+                        <Setter Property="Padding" Value="2" />
+                    </Style>
+                </Grid.Resources>
                 <Grid>
-                    <Grid.Style>
-                        <Style TargetType="Grid">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding SimConnect.IsConnected}" Value="False">
-                                    <Setter Property="Visibility" Value="Visible" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Grid.Style>
-
-                    <TextBlock Text="Sim not connected" />
-                </Grid>
-
-                <Grid>
-                    <Grid.Style>
-                        <Style TargetType="Grid">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding SimConnect.IsConnected}" Value="True">
-                                    <Setter Property="Visibility" Value="Visible" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Grid.Style>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                    <Menu>
+                        <MenuItem Header="File">
+                            <MenuItem Command="{Binding OpenLog}" Header="Log" />
+                            <MenuItem Command="{Binding OpenVars}" Header="Variable List" />
+                        </MenuItem>
+                    </Menu>
 
-                        <TextBlock Text="Enter command:" />
-                        <TextBox Grid.Column="1" Text="{Binding Input}" />
-                        <Button Grid.Column="2" Command="{Binding Send}">Send</Button>
-                    </Grid>
-                    <TextBox Grid.Row="1"
-                             AcceptsReturn="True"
-                             IsReadOnly="True"
-                             Text="{Binding Buffer}" />
+                    <ItemsControl Grid.Row="1" ItemsSource="{Binding Data}">
+                        <ItemsControl.ItemTemplate>
+                            <ItemContainerTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border MinWidth="180" BorderThickness="2">
+                                        <Label Content="{Binding Name}" />
+                                    </Border>
+                                    <Border Grid.Column="1" BorderThickness="2">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsOK}" Value="False">
+                                                        <Setter Property="BorderBrush" Value="Red" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Label>
+                                            <TextBlock Text="{Binding Value}" />
+                                        </Label>
+                                    </Border>
+                                </Grid>
+                            </ItemContainerTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <ItemsControl Grid.Row="2" ItemsSource="{Binding Gauges}">
+                        <ItemsControl.ItemTemplate>
+                            <ItemContainerTemplate>
+                                <Grid>
+                                    <Button Command="{Binding Command}" Content="{Binding Name}" />
+                                </Grid>
+                            </ItemContainerTemplate>
+                        </ItemsControl.ItemTemplate>
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel HorizontalAlignment="Stretch" Orientation="Vertical" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
                 </Grid>
             </Grid>
         </DataTemplate>

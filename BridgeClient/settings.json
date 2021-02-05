@@ -1,0 +1,27 @@
+{
+	"Webserver": {
+		"Port":  4200
+	},
+	"VFS": {
+		"Source": null,
+		"Mapped": [
+			"J",
+			"K",
+			"L"
+		],
+
+		"Templates": {
+			"WindowsStore": [
+				"%SystemDrive%\\MSFS Base\\Packages",
+				"%localappdata%\\Packages\\Microsoft.FlightSimulator_8wekyb3d8bbwe\\LocalCache\\Packages\\Official\\OneStore",
+				"%localappdata%\\Packages\\Microsoft.FlightSimulator_8wekyb3d8bbwe\\LocalCache\\Packages\\Community"
+			],
+			"Steam": [
+				"%ProgramFiles(x86)%\\Steam\\steamapps\\common\\MicrosoftFlightSimulator\\Packages",
+				"%AppData%\\Microsoft Flight Simulator\\Packages\\Official",
+				"%AppData%\\Microsoft Flight Simulator\\Packages\\Community"
+			]
+		}
+	}
+}
+
