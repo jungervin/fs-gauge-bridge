@@ -2998,7 +2998,7 @@ class Name_Z {
     static isValid(a) {
         if (!a)
             return false;
-        if (a.str != "") {
+        if (a.str) {  // da-modified
             return a.idHigh != 0 || a.idLow != 0;
         }
         return true;

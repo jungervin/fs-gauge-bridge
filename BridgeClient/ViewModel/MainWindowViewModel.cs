@@ -22,7 +22,7 @@ namespace BridgeClient.ViewModel
         public string Name { get => Get<string>(); set => Set(value); }
         public int Index { get => Get<int>(); set => Set(value); }
         public ICommand Command { get; set; }
-
+        
         public GaugeInfo(string url)
         {
             Name = Path.GetFileName(url);

@@ -14,6 +14,10 @@ function updateBridgeVariables() {
 		["AIRCRAFT CROSSOVER SPEED FACTOR", "Number"],
 		["AIRCRAFT ELEVATOR TRIM NEUTRAL", "percent"],
 		["GAME UNIT IS METRIC", "bool"],
+		["AIRCRAFT AOA ANGLE",  "angl16"],
+	];
+	var globalVars = [
+		["AIRCRAFT DESIGN SPEED VS0", "knots"],
 	];
 	try {
 		gameVars.forEach((k, i) => {
@@ -31,6 +35,10 @@ function updateBridgeVariables() {
 		SimVar.SetSimVarValue(base + "x", "Number", ori.x);
 		SimVar.SetSimVarValue(base + "y", "Number", ori.y);
 		SimVar.SetSimVarValue(base + "z", "Number", ori.z);
+
+		globalVars.forEach((k, i) => {
+			SimVar.SetSimVarValue("L:GLOB_" + k[0] + "_" + k[1], "Number", SimVar.GetGlobalVarValue(k[0], k[1]));
+		});
 
 	} catch (e) {
 		console.log("### " + e);

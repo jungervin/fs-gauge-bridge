@@ -57,14 +57,8 @@ var SimVar;
       //  callback();
     }
     SimVar.GetSimVarArrayValues = GetSimVarArrayValues;
-
     SimVar.SetSimVarValue = SimVarBridge.SetSimVarValue;
-
-    function GetGlobalVarValue(name, unit) {
-        console.log('### GetGlobalVarValue: ' + name);
-        return null;
-    }
-    SimVar.GetGlobalVarValue = GetGlobalVarValue;
+    SimVar.GetGlobalVarValue = SimVarBridge.GetGlobalVarValue;
 
     SimVar.GetGameVarValue = SimVarBridge.GetGameVarValue;
     function SetGameVarValue(name, unit, value) {

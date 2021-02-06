@@ -10,7 +10,7 @@ namespace BridgeClient
 {
     public partial class App : Application
     {
-        private SimpleHTTPServer _server;
+        internal SimpleHTTPServer _server;
 
         private Window _logWindow = null;
         private LogWindowViewModel _logVm = new LogWindowViewModel();
@@ -31,6 +31,10 @@ namespace BridgeClient
 
                 CfgManager.Initialize(vfs);
 
+                // Access is denied
+                // netsh http add urlacl url="http://+:4200/" user=everyone
+                _server = new SimpleHTTPServer(vfs, settings.Webserver);
+
                 _simConnect = new SimConnectViewModel();
 
                 var mainWindowViewModel = new MainWindowViewModel(new RelayCommand(OpenLog), new RelayCommand(OpenVarList));
@@ -39,9 +43,7 @@ namespace BridgeClient
                 var window = new MainWindow { DataContext = mainWindowViewModel };
                 window.Show();
 
-                // Access is denied
-                // netsh http add urlacl url="http://+:4200/" user=everyone
-                _server = new SimpleHTTPServer(vfs, settings.Webserver);
+
             }
             catch (Exception ex)
             {

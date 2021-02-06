@@ -1,7 +1,4 @@
-﻿// MIT License - Copyright (c) 2016 Can Güney Aksakalli
-// https://aksakalli.github.io/2014/02/24/simple-http-server-with-csparp.html
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,17 +10,27 @@ using System.Diagnostics;
 using BridgeClient;
 using Newtonsoft.Json;
 using BridgeClient.DataModel;
+using System.Net.WebSockets;
 
-class GetSimVarValueData
+
+public class WSMessage
+{
+    public string type { get; set; }
+    public WSValue[] values { get; set; }
+}
+
+
+public class WSValue
 {
     public string name { get; set; }
     public string unit { get; set; }
+    public object value { get; set; }
 }
 
 class CfgData
 {
     public string[] gauges { get; set; }
-    public Dictionary<string,string> cockpitcfg { get; set; }
+    public Dictionary<string, string> cockpitcfg { get; set; }
 }
 
 class SimpleHTTPServer
@@ -33,6 +40,7 @@ class SimpleHTTPServer
     private WebserverSettings _settings;
     private VFS _vfs;
     private int _port;
+   static  private List<Action<string>> m_sockets = new List<Action<string>>();
 
     public SimpleHTTPServer(VFS vfs, WebserverSettings settings)
     {
@@ -67,17 +75,28 @@ class SimpleHTTPServer
         }
     }
 
-
-
     private void Process(HttpListenerContext context)
     {
         string filename = context.Request.Url.AbsolutePath.Substring(1).ToLower();
 
         context.Response.AddHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+
         context.Response.AddHeader("Pragma", "no-cache");
         context.Response.AddHeader("expires", "0");
 
-        if (filename == "getsimvarvalue") 
+        if (filename == "ws")
+        {
+            if (context.Request.IsWebSocketRequest)
+            {
+                HandleWebSocketRequest(context);
+                return;
+            }
+            else
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            }
+        }
+        else if (filename == "getsimvarvalue")
         {
             string text;
             using (var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding))
@@ -86,7 +105,7 @@ class SimpleHTTPServer
             }
             context.Response.ContentType = "text/json";
 
-            var names = JsonConvert.DeserializeObject<GetSimVarValueData[]>(text);
+            var names = JsonConvert.DeserializeObject<WSValue[]>(text);
 
             SimConnectViewModel.Instance.AdviseVariables(names.ToList());
 
@@ -126,7 +145,7 @@ class SimpleHTTPServer
                 data.cockpitcfg = CfgManager.aircraftDirectoryNameToCockpitCfg[aircraftFolder].Values["AIRSPEED"];
 
                 var json = JsonConvert.SerializeObject(data);
-                var bytes = Encoding.UTF8.GetBytes( json);
+                var bytes = Encoding.UTF8.GetBytes(json);
 
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
                 context.Response.ContentType = "text/json";
@@ -161,7 +180,7 @@ class SimpleHTTPServer
 
             if (pathOnDisk != null)
             {
-              //  Trace.WriteLine($"Serving {filename} -> {pathOnDisk}");
+                //  Trace.WriteLine($"Serving {filename} -> {pathOnDisk}");
                 try
                 {
                     Stream input = new FileStream(pathOnDisk, FileMode.Open);
@@ -189,7 +208,7 @@ class SimpleHTTPServer
             }
             else
             {
-                if (!filename.Contains(".js.map") && 
+                if (!filename.Contains(".js.map") &&
                     filename != "favicon.ico")
                 {
                     Console.WriteLine("## 404: " + filename);
@@ -198,6 +217,157 @@ class SimpleHTTPServer
             }
         }
         context.Response.OutputStream.Close();
+    }
+
+
+    private async void HandleWebSocketRequest(HttpListenerContext context)
+    {
+        try
+        {
+            Trace.WriteLine("WS: Connecting to ws client");
+            var socketContext = await context.AcceptWebSocketAsync(null);
+            var sock = socketContext.WebSocket;
+            Action<string> writeSock = (txtToWrite) =>
+            {
+              //  Trace.WriteLine("WS: Send: " + txtToWrite.Length);
+
+                var writeBytes = context.Request.ContentEncoding.GetBytes(txtToWrite);
+                sock.SendAsync(new ArraySegment<byte>(writeBytes), WebSocketMessageType.Text, true, CancellationToken.None);
+            };
+            m_sockets.Add(writeSock);
+            try
+            {
+                while (sock.State == WebSocketState.Open)
+                {
+                    byte[] receiveBuffer = new byte[1024 * 50];
+                    int bufferStart = 0;
+                   
+                    WebSocketReceiveResult receiveResult = null;
+                    do
+                    {
+                        receiveResult = await sock.ReceiveAsync(new ArraySegment<byte>(receiveBuffer, bufferStart, receiveBuffer.Length - bufferStart), CancellationToken.None);
+                        bufferStart += receiveResult.Count;
+
+                    } while (!receiveResult.EndOfMessage);
+
+
+                    var ret = context.Request.ContentEncoding.GetString(receiveBuffer);
+                    if (!string.IsNullOrWhiteSpace(ret))
+                    {
+                        try
+                        {
+                            var msg = JsonConvert.DeserializeObject<WSMessage>(ret);
+                            if (msg != null)
+                            {
+                                OnGotSocketMessage(msg);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Trace.WriteLine("-----------------");
+                            Trace.WriteLine(ret);
+                            Trace.WriteLine("-----------------");
+
+                            Trace.WriteLine("WS: Error: " + ex);
+                            Trace.WriteLine("-----------------");
+
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                Trace.WriteLine("WS: Lost client");
+
+                m_sockets.Remove(writeSock);
+            }
+        }
+        catch(WebSocketException ex)
+        {
+            context.Response.StatusCode = 500;
+
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine("WS: Error: " + ex);
+            context.Response.StatusCode = 500;
+
+            context.Response.Close();
+        }
+    }
+
+    public static void TakeOperation(ReadOperationBatch op, double[] opResult)
+    {
+        WSMessage data = new WSMessage();
+        data.type = "data";
+        data.values = op.Lines.Select((l,i) => new WSValue
+        {
+            name = l.Key,
+            unit = l.Unit,
+            value = opResult[i],
+
+        }).ToArray();
+
+        Broadcast(data);
+    }
+
+    public static void TakeOperation(GENERIC_DATA simData)
+    {
+        WSMessage data = new WSMessage();
+        data.type = "data";
+        data.values = new WSValue[]
+        {
+            new WSValue{ name = "TITLE", unit = "string", value = simData.title},
+            new WSValue{ name = "HSI STATION IDEN", unit = "string", value = simData.hsi_station_ident},
+            new WSValue{ name = "GPS WP NEXT ID", unit = "string", value = simData.gps_wp_next_id},
+            new WSValue{ name = "GPS WP PREV ID", unit = "string", value = simData.gps_wp_prev_id},
+            new WSValue{ name = "ATC MODEL", unit = "string", value = simData.atc_model},
+            new WSValue{ name = "NAV IDENT:1", unit = "string", value = simData.nav_ident_1},
+            new WSValue{ name = "NAV IDENT:2", unit = "string", value = simData.nav_ident_2},
+            new WSValue{ name = "NAV IDENT:3", unit = "string", value = simData.nav_ident_3},
+            new WSValue{ name = "NAV IDENT:4", unit = "string", value = simData.nav_ident_4},
+        };
+
+        Broadcast(data);
+    }
+
+
+    private void OnGotSocketMessage(WSMessage msg)
+    {
+        try
+        {
+            switch (msg.type)
+            {
+                case "hello":
+                case "read":
+                    SimConnectViewModel.Instance.AdviseVariables(msg.values.Select(v => new WSValue { name = v.name, unit = v.unit }).ToList());
+                    break;
+                case "write":
+                    {
+
+                        foreach (var v in msg.values)
+                        {
+                            SimConnectViewModel.Instance.Write(v.name, v.unit, double.Parse((string)v.value));
+                        }
+                    }
+                    // SimConnectViewModel.Instance.Write((string)data["name"], (string)data["unit"], double.Parse((string)data["value"]));
+                    break;
+                default: throw new NotImplementedException();
+            }
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine("WS: " + ex);
+        }
+    }
+
+    public static void Broadcast(WSMessage msg)
+    {
+        var msgText = JsonConvert.SerializeObject(msg);
+        foreach (var client in m_sockets.ToArray())
+        {
+            client(msgText);
+        }
     }
 
     private int AssignPort()

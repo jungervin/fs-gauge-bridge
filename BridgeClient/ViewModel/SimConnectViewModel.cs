@@ -31,7 +31,13 @@ namespace BridgeClient
             {
                 var isValue = vv.Value.HasValue;
                 var valueText = isValue ? Math.Round(vv.Value.Value, 4) + " " : "";
-                ret.Add($"{valueText}({(isValue ? ">" : "")}{FixKey(vv.Key)},{vv.Unit})");
+                var str = $"{valueText}({(isValue ? ">" : "")}{FixKey(vv.Key)},{vv.Unit})";
+
+                if (isValue)
+                {
+                //    Trace.WriteLine(str);
+                }
+                ret.Add(str);
             }
 
             return new WriteToSim(ret.ToArray(), SeqId);
@@ -99,7 +105,8 @@ namespace BridgeClient
                 "NAV IDENT:4",
             };
 
-            m_types["ABSOLUTE TIME"] = "seconds";
+            m_types["LIGHT LANDING"] = "number";
+            m_typesRaw.Add("LIGHT LANDING");
 
             m_refreshTimer.Interval = TimeSpan.FromMilliseconds(500);
             m_refreshTimer.Tick += RefreshTimer_Tick;
@@ -139,6 +146,9 @@ namespace BridgeClient
                     ClientData.ReadFromSim, SIMCONNECT_CLIENT_DATA_PERIOD.ON_SET, SIMCONNECT_CLIENT_DATA_REQUEST_FLAG.CHANGED,
                     0, 0, 0);
 
+                // Scenario: First loading the sim.
+                // This is NOT necessary once BridgeGauge has set client data.
+                RequestNextOperation();
             });
 
             Dispatcher.Run();
@@ -187,12 +197,19 @@ namespace BridgeClient
                 All["NAV IDENT:4"] = data.nav_ident_4;
             }
             Title = data.title;
+
+            SimpleHTTPServer.TakeOperation(data);
+
         }
 
         private void OnRecvClientData(SimConnect sender, SIMCONNECT_RECV_CLIENT_DATA recvData)
         {
             var data = (ReadFromSim)(recvData.dwData[0]);
             var op = m_currentOperation;
+
+           // Trace.WriteLine("OnRecvClientData " + (op == null ? "NONE" : op.SeqId.ToString()));
+
+
             if (op == null ||  // Initialize
                 op.SeqId == data.seq) // Exact match
             {
@@ -206,21 +223,47 @@ namespace BridgeClient
                             //  Trace.WriteLine($"{data.seq} {ro.Key[i]}: {data.data[i]}");
                         }
                     }
+
+                    SimpleHTTPServer.TakeOperation(op, data.data);
                 }
 
                 ReadCounter.GotFrame();
-
-                var nextOp = GetNextOperationBatch();
-                m_currentOperation = nextOp;
-                nextOp.SeqId = ++m_seqId;
-
-                m_simConnect?.m_simConnect?.SetClientData(
-                    ClientData.WriteToSim,
-                    ClientData.WriteToSim,
-                    SIMCONNECT_CLIENT_DATA_SET_FLAG.DEFAULT,
-                    0,
-                    nextOp.getData());
+                RequestNextOperation();
             }
+            else
+            {
+                if (op != null)
+                {
+                    if (op.SeqId == data.seq + 1)
+                    {
+                        // Ignore this is simply waiting still
+                    }
+                    else
+                    {
+                        Trace.WriteLine($"## OnRecvClientData Got {data.seq} was expecting {m_currentOperation.SeqId} ");
+                    }
+                }
+                else
+                {
+                    // Scenario: Reconnecting with state already present.
+                    Trace.WriteLine("Executing #1 request");
+                    RequestNextOperation();
+                }
+            }
+        }
+
+        private void RequestNextOperation()
+        {
+            var nextOp = GetNextOperationBatch();
+            m_currentOperation = nextOp;
+            nextOp.SeqId = ++m_seqId;
+
+            m_simConnect?.m_simConnect?.SetClientData(
+                ClientData.WriteToSim,
+                ClientData.WriteToSim,
+                SIMCONNECT_CLIENT_DATA_SET_FLAG.DEFAULT,
+                0,
+                nextOp.getData());
         }
 
         ReadOperationBatch GetNextOperationBatch()
@@ -241,7 +284,6 @@ namespace BridgeClient
                 }
             }
 
-            //  ++m_currentTypeIndex;
             ++m_currentTypeIndex;
             // Loop through all known variables
             if (m_currentTypeIndex == 1)
@@ -265,7 +307,12 @@ namespace BridgeClient
             return new ReadOperation { Key = key, Unit = m_types[key] };
         }
 
-        public void AdviseVariables(List<GetSimVarValueData> nameList)
+        internal void AdviseVariable(string name, string unit)
+        {
+            AdviseVariables(new List<WSValue> { new WSValue { name = name, unit = unit } });
+        }
+
+        public void AdviseVariables(List<WSValue> nameList)
         {
             nameList = nameList.Where(x => !m_StringAVarsToCopyFromSimData.Contains(x.name)).ToList();
 
@@ -290,6 +337,7 @@ namespace BridgeClient
 
         internal void Write(string name, string unit, double value)
         {
+           // Trace.WriteLine($"Write: {name}={value} as {unit}");
             var op = new ReadOperation
             {
                 Key = name,
