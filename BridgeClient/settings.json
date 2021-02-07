@@ -18,7 +18,7 @@
 			],
 			"Steam": [
 				"%ProgramFiles(x86)%\\Steam\\steamapps\\common\\MicrosoftFlightSimulator\\Packages",
-				"%AppData%\\Microsoft Flight Simulator\\Packages\\Official",
+				"%AppData%\\Microsoft Flight Simulator\\Packages\\Official\\Steam",
 				"%AppData%\\Microsoft Flight Simulator\\Packages\\Community"
 			]
 		}
