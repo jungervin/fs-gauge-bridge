@@ -1,22 +1,80 @@
-﻿using BridgeClient.ViewModel;
+﻿using BridgeClient.DataModel;
+using BridgeClient.ViewModel;
+using Newtonsoft.Json;
+using System;
+using System.Diagnostics;
+using System.IO;
 using System.Windows;
-using System.Windows.Controls;
 
 namespace BridgeClient
 {
     public partial class App : Application
     {
+        internal SimpleHTTPServer _server;
+
+        private Window _logWindow = null;
+        private LogWindowViewModel _logVm = new LogWindowViewModel();
+        private SimConnectViewModel _simConnect;
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
 
-            var simConnectViewModel = new SimConnectViewModel();
-            var mainWindowViewModel = new MainWindowViewModel(simConnectViewModel);
+            var tracer = new UITraceListener();
+            Trace.Listeners.Add(tracer);
+            tracer.Message += (msg) => _logVm.AddMessage(msg);
 
-            mainWindowViewModel.Input = "(A:LIGHT LANDING,Bool)";
+            try
+            {
+                var settings = JsonConvert.DeserializeObject<AppSettings>(File.ReadAllText("settings.json"));
+                var vfs = new VFS(settings.VFS);
 
-            var window = new MainWindow { DataContext = mainWindowViewModel };
-            window.Show();
+                CfgManager.Initialize(vfs);
+
+                // Access is denied
+                // netsh http add urlacl url="http://+:4200/" user=everyone
+                _server = new SimpleHTTPServer(vfs, settings.Webserver);
+
+                _simConnect = new SimConnectViewModel();
+
+                var mainWindowViewModel = new MainWindowViewModel(new RelayCommand(OpenLog), new RelayCommand(OpenVarList));
+                mainWindowViewModel.SimConnect = _simConnect;
+
+                var window = new MainWindow { DataContext = mainWindowViewModel };
+                window.Show();
+
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"{ex.Message}\n\n{ex}");
+            }
+        }
+
+        internal void Navigate(int index)
+        {
+            ProcessHelper.Start($"{_server.Url}Pages/VCockpit/Core/VCockpit.html?id={index}");
+        }
+
+        private void OpenLog()
+        {
+            if (_logWindow != null)
+            {
+                _logWindow.Topmost = true;
+                _logWindow.Topmost = false;
+            }
+            else
+            {
+                _logWindow = new LogWindow { DataContext = _logVm };
+                _logWindow.Closed += (_, __) => _logWindow = null;
+                _logWindow.Show();
+            }
+        }
+
+        private void OpenVarList()
+        {
+            var varWindow = new VariableListWindow { DataContext = new VariableListWindowViewModel(_simConnect) };
+            varWindow.Show();
         }
     }
 }

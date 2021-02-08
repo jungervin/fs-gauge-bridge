@@ -51,12 +51,16 @@
     <OutputPath>..\Build\Debug\</OutputPath>
     <IncludePath>$(MSFS_IncludePath)</IncludePath>
     <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
+    <OutDir>$(SolutionDir)\Build\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)\Build\obj\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|MSFS'">
     <LinkIncremental>false</LinkIncremental>
     <TargetExt>.wasm</TargetExt>
     <OutputPath>..\Release\Debug\</OutputPath>
     <IncludePath>$(MSFS_IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)\Build\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)\Build\obj\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|MSFS'">
     <ClCompile>
@@ -78,7 +82,9 @@
       <NoEntryPoint>true</NoEntryPoint>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(TargetPath)" "C:\src\flightsim-stuff\flightdesign-clts\PackageSources\SimObjects\Airplanes\Asobo_FlightDesignCT\panel"</Command>
+      <Command>
+      mkdir "$(SolutionDir)\fs-package\PackageSources\modules\" 2&gt; NUL
+      copy /Y "$(TargetPath)" "$(SolutionDir)\fs-package\PackageSources\modules\"</Command>
     </PostBuildEvent>
     <PreBuildEvent>
       <Command>
