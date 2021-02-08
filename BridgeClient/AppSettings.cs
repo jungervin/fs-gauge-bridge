@@ -12,6 +12,7 @@
 
         public string[] Source { get; set; }
         public string[] Mapped { get; set; }
+        public bool SkipUnmapOnShutdown { get; set; }
     }
 
     class WebserverSettings

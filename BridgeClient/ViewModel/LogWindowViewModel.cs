@@ -9,7 +9,7 @@ namespace BridgeClient.ViewModel
 
         public void AddMessage(string message)
         {
-            Buffer = DateTime.Now.ToLongTimeString() + $" {message}" + Buffer;
+            Buffer = Buffer + DateTime.Now.ToLongTimeString() + $" {message}" ;
         }
     }
 }
