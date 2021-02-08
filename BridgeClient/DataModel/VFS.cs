@@ -159,6 +159,20 @@ namespace BridgeClient.DataModel
             Trace.WriteLine($"VFS: Mapping {source} to {mapped}");
 
             Subst($"{mapped}: /D");
+
+            try
+            {
+                if (Directory.Exists(mapped + ":"))
+                {
+                    MessageBox.Show($"Warning: Map target at {mapped}: already exists\n\nUpdate settings.json with unused drive letters");
+                    Environment.Exit(0);
+                }
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine(ex);
+            }
+
             Subst($"{mapped}: \"{source}\"");
 
             AddPackageDirectory($"{mapped}:\\");
