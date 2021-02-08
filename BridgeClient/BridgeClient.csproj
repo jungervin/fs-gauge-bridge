@@ -22,6 +22,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>..\Build\Debug\</OutputPath>
+    <BaseIntermediateOutputPath>..\Build\obj</BaseIntermediateOutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -32,6 +33,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\Build\Release\</OutputPath>
+    <BaseIntermediateOutputPath>..\Build\obj</BaseIntermediateOutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -39,7 +41,10 @@
   <ItemGroup>
     <Reference Include="Microsoft.FlightSimulator.SimConnect, Version=10.0.61259.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=x86">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>.\Microsoft.FlightSimulator.SimConnect.dll</HintPath>
+      <HintPath>$(MSFS_SDK)\SimConnect SDK\lib\managed\Microsoft.FlightSimulator.SimConnect.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.12.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
@@ -64,10 +69,27 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="AppSettings.cs" />
+    <Compile Include="DataModel\CfgFile.cs" />
+    <Compile Include="DataModel\CfgManager.cs" />
+    <Compile Include="DataModel\FpsCounter.cs" />
+    <Compile Include="DataModel\MimeTypes.cs" />
+    <Compile Include="DataModel\ProcessHelper.cs" />
+    <Compile Include="DataModel\SimConnectStructures.cs" />
+    <Compile Include="DataModel\SimpleHTTPServer.cs" />
+    <Compile Include="DataModel\UITraceListener.cs" />
+    <Compile Include="DataModel\VFS.cs" />
     <Compile Include="Extensions\EnumHelper.cs" />
+    <Compile Include="LogWindow.xaml.cs">
+      <DependentUpon>LogWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="VariableListWindow.xaml.cs">
+      <DependentUpon>VariableListWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ViewModel\LogWindowViewModel.cs" />
     <Compile Include="ViewModel\MainWindowViewModel.cs" />
     <Compile Include="ViewModel\SimConnectViewModel.cs" />
     <Compile Include="ViewModel\Primitives\BaseViewModel.cs" />
@@ -77,6 +99,7 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ViewModel\VariableListWindowViewModel.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">
@@ -96,24 +119,44 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <None Include="settings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <Page Include="LogWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="MainWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="VariableListWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="SimConnect.dll">
+    <Content Include="$(MSFS_SDK)\SimConnect SDK\lib\SimConnect.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>
+
+xcopy "." "$(SolutionDir)\fs-package\PackageSources\bin\" /s /e /Y
+xcopy "$(SolutionDir)\fs-package\PackageSources\ExternalPackages" "..\ExternalPackages\" /s /e /Y
+
+</PostBuildEvent>
+  </PropertyGroup>
 </Project>

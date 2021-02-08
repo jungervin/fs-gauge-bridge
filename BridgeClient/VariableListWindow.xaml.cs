@@ -3,11 +3,11 @@
 namespace BridgeClient
 {
     /// <summary>
-    /// Interaction logic for MainWindow.xaml
+    /// Interaction logic for VariableListWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class VariableListWindow : Window
     {
-        public MainWindow()
+        public VariableListWindow()
         {
             InitializeComponent();
         }

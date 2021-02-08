@@ -1,0 +1,106 @@
+/*! *****************************************************************************
+    Author: dga711  in 2020
+    https://github.com/dga711/msfs-webui-devkit
+***************************************************************************** */
+
+@font-face {
+    font-family: "Consolas";
+    src: url("/Fonts/consola.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+}
+
+#DebugPanel {
+    background-color: #282828;
+    opacity: 0.8;
+    width: 40%;
+    min-height: 32px;
+    height: auto;
+    font-size: 14px;
+}
+
+#DebugPanel.collapsed {
+    width: auto;
+    opacity: 0.3;
+}
+
+.Console {
+    font-size: 11px;
+    font-family: "Consolas";
+    min-height: 50px;
+    padding: 4px;
+    margin: 4px;
+    width: 98%;
+    overflow: auto;
+}
+
+#debugContent.collapsed {
+    display: none;    
+}
+
+#debugHeader {
+    vertical-align: middle;
+    height: 28px;
+    padding: 8px;
+}
+
+#debugEval {
+    height: 26px;
+    padding: 4px;
+    margin-right:4px;
+}
+
+#debugActions {
+    margin-left: 10px;
+}
+
+#DebugPanel button {
+    width: 20px;
+    margin-top: -1px;
+    background-color: transparent;
+    border: solid 1px white;
+    color: white;
+}
+
+.debugButton {
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    padding: 2px;
+}
+
+#evalCmdIn {
+    width: 90%;
+    height: 18px;
+    vertical-align: top;
+    font-size: 12px;
+}
+
+.inspector-highlight {
+    border: solid 2px pink;
+}
+
+.inspector-tooltip {
+    position: absolute;
+    display: block;
+    background-color: #190061;
+    color: white;
+    z-index: 120000;
+    pointer-events: none;
+    font-size: 14px;
+    padding: 8px;
+}
+
+.hidden {
+    display: none;
+}
+
+.scrollbar {
+    overflow: auto;
+    --sbback: transparent;
+    --barcolor: #3f3f3f;
+}
+
+.scrollbar:hover {
+    --barcolor: #3f3f3f;
+}

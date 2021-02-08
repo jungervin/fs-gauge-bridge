@@ -6,16 +6,56 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Windows.Threading;
 
 namespace BridgeClient.DataModel
 {
+
+    [AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
+    public class SimLinkAttribute : Attribute
+    {
+        public string Name { get; set; }
+        public string Type { get; set; }
+    }
+
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct GENERIC_DATA
+    {
+        [SimLink(Name = "Title", Type = null)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string title;
+        [SimLink(Name = "HSI STATION IDENT", Type = null)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string hsi_station_ident;
+        [SimLink(Name = "GPS WP PREV ID", Type = null)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string gps_wp_prev_id;
+        [SimLink(Name = "GPS WP NEXT ID", Type = null)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string gps_wp_next_id;
+        [SimLink(Name = "ATC MODEL", Type = null)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string atc_model;
+        [SimLink(Name = "NAV IDENT:1", Type = null)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string nav_ident_1;
+        [SimLink(Name = "NAV IDENT:2", Type = null)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string nav_ident_2;
+        [SimLink(Name = "NAV IDENT:3", Type = null)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string nav_ident_3;
+        [SimLink(Name = "NAV IDENT:4", Type = null)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string nav_ident_4;
+    }
+
     public class SimConnector : NativeWindow
     {
         public event Action<bool> Connected;
-        public event Action<SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE> SimConnectRecvSimobjectDataBytype;
 
         private static readonly int WM_USER_SIMCONNECT = 0x402;
+
         public SimConnect m_simConnect;
         private Action m_afterConnected;
 
@@ -64,7 +104,7 @@ namespace BridgeClient.DataModel
                 m_simConnect.OnRecvOpen += new SimConnect.RecvOpenEventHandler(OnSimConnectRecvOpen);
                 m_simConnect.OnRecvQuit += new SimConnect.RecvQuitEventHandler(OnSimConnectRecvQuit);
                 m_simConnect.OnRecvException += new SimConnect.RecvExceptionEventHandler(OnSimConnectRecvException);
-                
+
                 m_afterConnected();
             }
             catch (COMException)
@@ -109,6 +149,17 @@ namespace BridgeClient.DataModel
         {
             await Task.Delay(10 * 1000);
             ConnectInternal();
+        }
+
+        public void RegisterStruct<TData>(Enum definition)
+        {
+            foreach (var field in typeof(TData).GetFields(BindingFlags.Instance | BindingFlags.Public))
+            {
+                var attr = field.GetCustomAttributes<SimLinkAttribute>().First();
+                m_simConnect.AddToDataDefinition(definition, attr.Name, attr.Type, attr.Type == null ? SIMCONNECT_DATATYPE.STRING256 : SIMCONNECT_DATATYPE.FLOAT64, 0.0f, SimConnect.SIMCONNECT_UNUSED);
+            }
+            m_simConnect.RegisterDataDefineStruct<TData>(definition);
+
         }
     }
 }

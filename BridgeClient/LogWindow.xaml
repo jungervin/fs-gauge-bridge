@@ -1,0 +1,27 @@
+﻿<Window x:Class="BridgeClient.LogWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:local="clr-namespace:BridgeClient"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:BridgeClient.ViewModel"
+        Title="{Binding Title}"
+        Width="800"
+        Height="450"
+        mc:Ignorable="d">
+    <Window.Resources>
+        <DataTemplate DataType="{x:Type vm:LogWindowViewModel}">
+            <Grid>
+                <TextBox Grid.Row="1"
+                         AcceptsReturn="True"
+                         IsReadOnly="True"
+                         Text="{Binding Buffer}"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto" />
+            </Grid>
+        </DataTemplate>
+    </Window.Resources>
+    <Grid>
+        <ContentControl Content="{Binding}" />
+    </Grid>
+</Window>
