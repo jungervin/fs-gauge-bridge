@@ -40,7 +40,7 @@ namespace BridgeClient.DataModel
             foreach (var cfg in aircraftCfgs)
             {
                 var airplaneDirectoryName = Path.GetFileName(Path.GetDirectoryName(cfg));
-
+                Trace.WriteLine($"Loading from {cfg}");
                 try
                 {
                     // Load aircraft.cfg
@@ -86,7 +86,7 @@ namespace BridgeClient.DataModel
                                 cfgEntry.panel_path = relativePanelXml;
 
                                 gauges.Add(cfgEntry);
-                                Trace.WriteLine($"htmlgauge: {key}");
+                                Trace.WriteLine($"htmlgauge: {cfgEntry.htmlgauge00.path}");
                             }
 
 
