@@ -166,7 +166,7 @@ var Include;
                 var toTest = scripts[i].src;
                 if (toTest !== "") {
                     toTest = toTest.toLowerCase();
-                    toTest = toTest.replace("coui://html_ui", "");
+                    toTest = toTest.replace(window.location.origin, "");
                     if (toTest[0] !== "/") {
                         toTest = IncludeMgr.AbsolutePath(window.location.pathname.toLowerCase(), toTest);
                     }
@@ -208,7 +208,7 @@ var Include;
         requestScript(_def) {
             var scriptRequest = document.createElement("script");
             scriptRequest.type = "text/javascript";
-            scriptRequest.src = "coui://html_ui" + _def.path;
+            scriptRequest.src = _def.path;
             scriptRequest.onload = this.onScriptLoaded.bind(this, _def);
             _def.requested = true;
             return scriptRequest;
@@ -2360,7 +2360,7 @@ class UIElement extends HTMLElement {
 window.customElements.define("ui-element", UIElement);
 Coherent.on("SetPageTitle", function (title) {
     if (document)
-         = title;
+        document.title = title;
 });
 let g_checkComponentsTimeout = -1;
 class TemplateElement extends UIElement {
@@ -2988,7 +2988,7 @@ class Name_Z {
     static isValid(a) {
         if (!a)
             return false;
-        if (a.str != "") {
+        if (a.str) {  // da-modified: was `a.str != ""`
             return a.idHigh != 0 || a.idLow != 0;
         }
         return true;
@@ -3810,9 +3810,9 @@ class DebugMgr {
             this.m_defaultWarn = console.warn;
         if (!this.m_defaultError)
             this.m_defaultError = console.error;
-        console.log = this.log.bind(this);
-        console.warn = this.warn.bind(this);
-        console.error = this.error.bind(this);
+        //console.log = this.log.bind(this);
+        //console.warn = this.warn.bind(this);
+        //console.error = this.error.bind(this);
     }
     log() {
         this.m_defaultLog.apply(console, arguments);
@@ -4585,6 +4585,7 @@ for (let key in window.top.globalVars) {
     updateGlobalVar(key, window.top.globalVars[key]);
 }
 var _optiPow10 = [];
+/*
 function fastToFixed(_val, _fraction) {
     if (_fraction <= 0) {
         return Math.round(_val).toString();
@@ -4598,6 +4599,7 @@ function fastToFixed(_val, _fraction) {
         return (Math.round(_val * coef) / coef).toString();
     }
 }
+*/
 var KeyCode;
 (function (KeyCode) {
     KeyCode.KEY_CANCEL = 3;

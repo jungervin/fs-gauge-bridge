@@ -4000,7 +4000,7 @@ class MFD_DepartureSelection extends NavSystemElement {
         }
     }
 }
-
+/*
 function fastToFixed(num, p) {
     if (p <= 0)
         return Math.round(num).toString();
@@ -4010,5 +4010,5 @@ function fastToFixed(num, p) {
 
     return r.substring(0, l - p) + "." + r.substring(l - p, l);
 }
-
+*/
 //# sourceMappingURL=CommonPFD_MFD.js.map
