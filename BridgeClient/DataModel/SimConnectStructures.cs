@@ -8,6 +8,7 @@ namespace BridgeClient.DataModel
     {
         ReadFromSimChanged,
         GenericData,
+        GenericData2,
     }
 
     enum Structs

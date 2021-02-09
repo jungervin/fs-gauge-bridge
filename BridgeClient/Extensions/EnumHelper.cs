@@ -17,5 +17,11 @@ namespace BridgeClient.Extensions
             var memInfo = type.GetMember(enumVal.ToString());
             return (T[])memInfo[0].GetCustomAttributes(typeof(T), false);
         }
+        enum Dummy { None, };
+
+        public static Enum ToEnum(this uint val)
+        {
+            return (Dummy)(val);
+        }
     }
 }

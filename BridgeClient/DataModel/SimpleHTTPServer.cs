@@ -264,21 +264,13 @@ class SimpleHTTPServer
         Broadcast(data);
     }
 
-    public static void TakeOperation(GENERIC_DATA simData)
+    public static void TakeOperation(WSValue value)
     {
         WSMessage data = new WSMessage();
         data.type = "data";
         data.values = new WSValue[]
         {
-            new WSValue{ name = "TITLE", unit = "string", value = simData.title},
-            new WSValue{ name = "HSI STATION IDEN", unit = "string", value = simData.hsi_station_ident},
-            new WSValue{ name = "GPS WP NEXT ID", unit = "string", value = simData.gps_wp_next_id},
-            new WSValue{ name = "GPS WP PREV ID", unit = "string", value = simData.gps_wp_prev_id},
-            new WSValue{ name = "ATC MODEL", unit = "string", value = simData.atc_model},
-            new WSValue{ name = "NAV IDENT:1", unit = "string", value = simData.nav_ident_1},
-            new WSValue{ name = "NAV IDENT:2", unit = "string", value = simData.nav_ident_2},
-            new WSValue{ name = "NAV IDENT:3", unit = "string", value = simData.nav_ident_3},
-            new WSValue{ name = "NAV IDENT:4", unit = "string", value = simData.nav_ident_4},
+            value,
         };
 
         Broadcast(data);

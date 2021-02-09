@@ -59,8 +59,10 @@ namespace BridgeClient.ViewModel
             Data = new List<TextWithValue> {
                 isSimConnected,
                 acTitle,
-                simBridgeOps ,
-               // bridgeQueueLength,
+               
+             
+                 simBridgeOps ,
+            
                 bridgeLatency,
                 trackedVAriables,
             };
@@ -76,13 +78,14 @@ namespace BridgeClient.ViewModel
                 isSimConnected.Value = SimConnect.IsConnected ? "Connected" : "Connecting...";
                 isSimConnected.IsOK = SimConnect.IsConnected;
 
-                simBridgeOps.Value = Math.Round(SimConnect.ReadCounter.Fps).ToString();
-                simBridgeOps.IsOK = !SimConnect.IsConnected || SimConnect.ReadCounter.Fps > 1;
+                simBridgeOps.Value = Math.Round(SimConnect.BridgeCounter.Fps).ToString();
+                simBridgeOps.IsOK = !SimConnect.IsConnected || SimConnect.BridgeCounter.Fps > 1;
+
+          
 
                 trackedVAriables.Value = SimConnect.All.Count.ToString();
                
-              //  bridgeQueueLength.Value = SimConnect.QueueLength().ToString();
-              //  bridgeQueueLength.IsOK = SimConnect.QueueLength() < 200;
+   
                 bridgeLatency.Value = SimConnect.Latency + "ms";
                 bridgeLatency.IsOK = SimConnect.Latency < 1000;
 

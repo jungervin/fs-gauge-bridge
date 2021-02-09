@@ -1,4 +1,5 @@
 ﻿using BridgeClient.DataModel;
+using BridgeClient.Extensions;
 using Microsoft.FlightSimulator.SimConnect;
 using Newtonsoft.Json;
 using System;
@@ -35,7 +36,7 @@ namespace BridgeClient
 
                 if (isValue)
                 {
-                //    Trace.WriteLine(str);
+                    //    Trace.WriteLine(str);
                 }
                 ret.Add(str);
             }
@@ -61,27 +62,38 @@ namespace BridgeClient
         public string Title { get => Get<string>(); set => Set(value); }
         public double Latency { get => Get<double>(); set => Set(value); }
 
-        public FpsCounter ReadCounter { get; }
+        public FpsCounter BridgeCounter { get; }
+        public FpsCounter SimConnectCounter { get; }
 
         private SimConnector m_simConnect;
         public Dictionary<string, object> All = new Dictionary<string, object>();
-        public Dictionary<string, string> m_types = new Dictionary<string, string>();
-        private List<string> m_typesRaw = new List<string>();
+        public Dictionary<string, string> m_localVars = new Dictionary<string, string>();
+        public Dictionary<string, WSValue> m_aircraftVars = new Dictionary<string, WSValue>();
+        private List<string> m_localVarNames = new List<string>();
         private object m_allLock = new object();
         private object m_writeLock = new object();
         private ReadOperationBatch m_currentOperation;
         private int m_currentTypeIndex;
         private int m_seqId;
-        private readonly DispatcherTimer m_refreshTimer = new DispatcherTimer();
-
-        private List<string> m_StringAVarsToCopyFromSimData = new List<string>();
         private Queue<ReadOperation> m_pendingWrites = new Queue<ReadOperation>();
+        private Queue<WSValue> m_pendingAircraftVarRequests = new Queue<WSValue>();
 
         private Stopwatch m_perCycleTimer = Stopwatch.StartNew();
 
+        private Dictionary<uint, WSValue> m_dataRequests = new Dictionary<uint, WSValue>();
+
+        private Dictionary<string, Enum> m_events = new Dictionary<string, Enum>();
+        private uint m_lastEvent = 0;
+
+
+        private uint m_lastDataRequestId;
+        private uint m_lastDefineId;
+
+
         public SimConnectViewModel()
         {
-            ReadCounter = new FpsCounter();
+            BridgeCounter = new FpsCounter();
+            SimConnectCounter = new FpsCounter();
             m_seqId = new Random().Next(0, 500);
             Instance = this;
             Dispatcher.CurrentDispatcher.InvokeAsync(() =>
@@ -92,30 +104,11 @@ namespace BridgeClient
                 t.Start();
             });
 
-            m_StringAVarsToCopyFromSimData = new List<string>
-            {
-                "ATC MODEL",
-                "TITLE",
-                "HSI STATION IDENT",
-                "GPS WP PREV ID",
-                "GPS WP NEXT ID",
-                "NAV IDENT:1",
-                "NAV IDENT:2",
-                "NAV IDENT:3",
-                "NAV IDENT:4",
-            };
 
-            m_types["LIGHT LANDING"] = "number";
-            m_typesRaw.Add("LIGHT LANDING");
+            m_localVars["LIGHT LANDING"] = "number";
+            m_localVarNames.Add("LIGHT LANDING");
 
-            m_refreshTimer.Interval = TimeSpan.FromMilliseconds(500);
-            m_refreshTimer.Tick += RefreshTimer_Tick;
-            m_refreshTimer.Start();
-        }
-
-        private void RefreshTimer_Tick(object sender, EventArgs e)
-        {
-            m_simConnect?.m_simConnect?.RequestDataOnSimObjectType(DATA_REQUESTS.GenericData, Structs.GenericData, 0, SIMCONNECT_SIMOBJECT_TYPE.USER);
+            m_pendingAircraftVarRequests.Enqueue(new WSValue { name = "TITLE", unit = "string" });
         }
 
         void SimConnectThreadProc()
@@ -124,21 +117,18 @@ namespace BridgeClient
             m_simConnect.Connected += (isConnected) => IsConnected = isConnected;
             m_simConnect.Connect(() =>
             {
-                m_simConnect.RegisterStruct<GENERIC_DATA>(Structs.GenericData);
+                m_simConnect.m_simConnect.OnRecvClientData += OnRecvClientData;
+                m_simConnect.m_simConnect.OnRecvSimobjectData += OnRecvSimobjectData;
+
+
 
                 m_simConnect.m_simConnect.MapClientDataNameToID("WriteToSim2", ClientData.WriteToSim);
                 m_simConnect.m_simConnect.MapClientDataNameToID("ReadFromSim2", ClientData.ReadFromSim);
-
-                var WriteToSimSize = (uint)Marshal.SizeOf(typeof(WriteToSim));
-                m_simConnect.m_simConnect.AddToClientDataDefinition(ClientData.WriteToSim, 0, WriteToSimSize, 0, 0);
-
-                var ReadFromSimSize = (uint)Marshal.SizeOf(typeof(ReadFromSim));
-                m_simConnect.m_simConnect.AddToClientDataDefinition(ClientData.ReadFromSim, 0, ReadFromSimSize, 0, 0);
+                m_simConnect.m_simConnect.AddToClientDataDefinition(ClientData.WriteToSim, 0, (uint)Marshal.SizeOf(typeof(WriteToSim)), 0, 0);
+                m_simConnect.m_simConnect.AddToClientDataDefinition(ClientData.ReadFromSim, 0, (uint)Marshal.SizeOf(typeof(ReadFromSim)), 0, 0);
 
                 m_simConnect.m_simConnect.RegisterStruct<SIMCONNECT_RECV_CLIENT_DATA, ReadFromSim>(ClientData.ReadFromSim);
 
-                m_simConnect.m_simConnect.OnRecvClientData += OnRecvClientData;
-                m_simConnect.m_simConnect.OnRecvSimobjectDataBytype += OnRecvSimobjectDataBytype;
 
                 m_simConnect.m_simConnect.RequestClientData(
                     ClientData.ReadFromSim,
@@ -146,25 +136,62 @@ namespace BridgeClient
                     ClientData.ReadFromSim, SIMCONNECT_CLIENT_DATA_PERIOD.ON_SET, SIMCONNECT_CLIENT_DATA_REQUEST_FLAG.CHANGED,
                     0, 0, 0);
 
+
                 // Scenario: First loading the sim.
                 // This is NOT necessary once BridgeGauge has set client data.
                 RequestNextOperation();
+
+                
+                while (m_pendingAircraftVarRequests.Any())
+                {
+                    RequestSimData(m_pendingAircraftVarRequests.Dequeue());
+                }
             });
 
             Dispatcher.Run();
         }
 
-        private void OnRecvSimobjectDataBytype(SimConnect sender, SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE data)
+        private void OnRecvSimobjectData(SimConnect sender, SIMCONNECT_RECV_SIMOBJECT_DATA data)
         {
+            var value = m_dataRequests[data.dwRequestID];
+
+            if (data.dwData[0] is SimDataString256 simData)
+            {
+                value.value = simData.value;
+                if (value.name.ToLower() == "title")
+                {
+                    Title = simData.value;
+                }
+
+            }
+            else if (data.dwData[0] is SimDataDouble simDouble)
+            {
+                value.value = simDouble.value;
+
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+
+            All[value.name] = value.value;
+
+            SimpleHTTPServer.TakeOperation(value);
+           // SimConnectCounter.GotFrame();
+
+            /*
             switch ((DATA_REQUESTS)data.dwRequestID)
             {
-                case DATA_REQUESTS.GenericData:
+                case DATA_REQUESTS.GenericData2:
                     OnGotSimConnectVariables((GENERIC_DATA)data.dwData[0]);
                     break;
                 default:
                     throw new NotImplementedException($"{data.dwRequestID}");
             }
+            */
         }
+
+
 
         public string GetJson()
         {
@@ -182,34 +209,11 @@ namespace BridgeClient
             }
         }
 
-        private void OnGotSimConnectVariables(GENERIC_DATA data)
-        {
-            lock (m_allLock)
-            {
-                All["TITLE"] = data.title;
-                All["HSI STATION IDENT"] = data.hsi_station_ident;
-                All["GPS WP NEXT ID"] = data.gps_wp_next_id;
-                All["GPS WP PREV ID"] = data.gps_wp_prev_id;
-                All["ATC MODEL"] = data.atc_model;
-                All["NAV IDENT:1"] = data.nav_ident_1;
-                All["NAV IDENT:2"] = data.nav_ident_2;
-                All["NAV IDENT:3"] = data.nav_ident_3;
-                All["NAV IDENT:4"] = data.nav_ident_4;
-            }
-            Title = data.title;
-
-            SimpleHTTPServer.TakeOperation(data);
-
-        }
-
         private void OnRecvClientData(SimConnect sender, SIMCONNECT_RECV_CLIENT_DATA recvData)
         {
             var data = (ReadFromSim)(recvData.dwData[0]);
             var op = m_currentOperation;
-
-           // Trace.WriteLine("OnRecvClientData " + (op == null ? "NONE" : op.SeqId.ToString()));
-
-
+            // Trace.WriteLine("OnRecvClientData " + (op == null ? "NONE" : op.SeqId.ToString()));
             if (op == null ||  // Initialize
                 op.SeqId == data.seq) // Exact match
             {
@@ -223,11 +227,10 @@ namespace BridgeClient
                             //  Trace.WriteLine($"{data.seq} {ro.Key[i]}: {data.data[i]}");
                         }
                     }
-
                     SimpleHTTPServer.TakeOperation(op, data.data);
                 }
 
-                ReadCounter.GotFrame();
+                BridgeCounter.GotFrame();
                 RequestNextOperation();
             }
             else
@@ -258,12 +261,8 @@ namespace BridgeClient
             m_currentOperation = nextOp;
             nextOp.SeqId = ++m_seqId;
 
-            m_simConnect?.m_simConnect?.SetClientData(
-                ClientData.WriteToSim,
-                ClientData.WriteToSim,
-                SIMCONNECT_CLIENT_DATA_SET_FLAG.DEFAULT,
-                0,
-                nextOp.getData());
+            m_simConnect?.m_simConnect?.SetClientData(ClientData.WriteToSim, ClientData.WriteToSim, SIMCONNECT_CLIENT_DATA_SET_FLAG.DEFAULT,
+                0, nextOp.getData());
         }
 
         ReadOperationBatch GetNextOperationBatch()
@@ -292,62 +291,113 @@ namespace BridgeClient
                 m_perCycleTimer.Restart();
             }
 
-            while (m_currentTypeIndex < m_typesRaw.Count - 1 && m_StringAVarsToCopyFromSimData.Contains(m_typesRaw[m_currentTypeIndex]))
-            {
-                ++m_currentTypeIndex;
-
-            }
-
-            if (m_currentTypeIndex >= m_typesRaw.Count)
+            if (m_currentTypeIndex >= m_localVarNames.Count)
             {
                 m_currentTypeIndex = 0;
             }
 
-            var key = m_typesRaw[m_currentTypeIndex];
-            return new ReadOperation { Key = key, Unit = m_types[key] };
+            var key = m_localVarNames[m_currentTypeIndex];
+            return new ReadOperation { Key = key, Unit = m_localVars[key] };
         }
 
-        internal void AdviseVariable(string name, string unit)
-        {
-            AdviseVariables(new List<WSValue> { new WSValue { name = name, unit = unit } });
-        }
 
         public void AdviseVariables(List<WSValue> nameList)
         {
-            nameList = nameList.Where(x => !m_StringAVarsToCopyFromSimData.Contains(x.name)).ToList();
+            var lvars = nameList.Where(n => n.name.StartsWith("L:"));
+            var cvars = nameList.Where(n => n.name.StartsWith("C:"));
+            var evars = nameList.Where(n => n.name.StartsWith("E:"));
+            var avars = nameList.Where(n => !n.name.StartsWith("L:") && !n.name.StartsWith("C:") && !n.name.StartsWith("E:"));
 
-            foreach (var kv in nameList)
+            foreach (var n in avars)
             {
-                if (kv.unit.ToLower() == "string")
+                if (!m_aircraftVars.ContainsKey(n.name))
                 {
-                    Trace.WriteLine("### String that should be copied from SimData: " + kv.name);
+                    if (IsConnected)
+                    {
+                        RequestSimData(n);
+                    }
+                    else
+                    {
+                        m_pendingAircraftVarRequests.Enqueue(n);
+                    }
                 }
+                m_aircraftVars[n.name] = n;
             }
 
-            foreach (var n in nameList)
+            foreach (var n in lvars)
             {
-                if (!m_types.ContainsKey(n.name))
+                if (!m_localVars.ContainsKey(n.name))
                 {
-                    m_typesRaw.Add(n.name);
-
+                    m_localVarNames.Add(n.name);
                 }
-                m_types[n.name] = n.unit;
+                m_localVars[n.name] = n.unit;
             }
         }
 
+
         internal void Write(string name, string unit, double value)
         {
-           // Trace.WriteLine($"Write: {name}={value} as {unit}");
-            var op = new ReadOperation
+            name = name.ToUpper();
+            // Trace.WriteLine($"Write: {name}={value} as {unit}");
+
+            if (name.StartsWith("K:"))
             {
-                Key = name,
-                Unit = unit,
-                Value = value
-            };
-            lock (m_writeLock)
-            {
-                m_pendingWrites.Enqueue(op);
+                TriggerSimEvent(name, (uint)value);
             }
+            else
+            {
+                lock (m_writeLock)
+                {
+                    m_pendingWrites.Enqueue(new ReadOperation
+                    {
+                        Key = name,
+                        Unit = unit,
+                        Value = value
+                    });
+                }
+            }
+        }
+
+        private void RequestSimData(WSValue value)
+        {
+         //   Trace.WriteLine("RequestSimData: " + value.name);
+
+            var id = (m_lastDefineId++).ToEnum();
+            var isString = value.unit.ToLower() == "string";
+
+            m_simConnect.m_simConnect.AddToDataDefinition(id, value.name, !isString ? value.unit : null,
+                isString ? SIMCONNECT_DATATYPE.STRING256 : SIMCONNECT_DATATYPE.FLOAT64,
+                0.0f, SimConnect.SIMCONNECT_UNUSED);
+
+            if (isString)
+            {
+                m_simConnect.m_simConnect.RegisterDataDefineStruct<SimDataString256>(id);
+            }
+            else
+            {
+                m_simConnect.m_simConnect.RegisterDataDefineStruct<SimDataDouble>(id);
+            }
+
+            var dataRequest = (m_lastDataRequestId++);
+            m_simConnect.m_simConnect.RequestDataOnSimObject(dataRequest.ToEnum(), id, SimConnect.SIMCONNECT_OBJECT_ID_USER,
+                SIMCONNECT_PERIOD.VISUAL_FRAME, SIMCONNECT_DATA_REQUEST_FLAG.DEFAULT, 0, 0, 0);
+            m_dataRequests[dataRequest] = value;
+        }
+
+        private void TriggerSimEvent(string name, uint value)
+        {
+            name = name.Remove(0, 2); // K:
+
+          //  Trace.WriteLine("TRIGGER: " + name);
+
+            if (!m_events.ContainsKey(name))
+            {
+                var nextEventId = (m_lastEvent++).ToEnum();
+                m_events[name] = nextEventId;
+                m_simConnect.m_simConnect.MapClientEventToSimEvent(nextEventId, name);
+            }
+
+            m_simConnect.m_simConnect.TransmitClientEvent(0U, m_events[name], value, (Enum)NOTIFICATION_GROUPS.GENERIC, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
         }
     }
 }

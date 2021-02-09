@@ -50,6 +50,19 @@ namespace BridgeClient.DataModel
         public string nav_ident_4;
     }
 
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct SimDataString256
+    {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string value;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct SimDataDouble
+    {
+        public double value;
+    }
+
     public class SimConnector : NativeWindow
     {
         public event Action<bool> Connected;
