@@ -50,21 +50,12 @@ namespace BridgeClient.ViewModel
 
             var isSimConnected = new TextWithValue { Name = "SimConnect" };
             var simBridgeOps = new TextWithValue { Name = "Bridge ops/sec" };
-            var bridgeQueueLength = new TextWithValue { Name = "Bridge Queue" };
-            var bridgeLatency = new TextWithValue { Name = "Bridge Latency" };
-            var trackedVAriables = new TextWithValue { Name = "Variable Count" };
             var acTitle = new TextWithValue { Name = "Aircraft Title" };
-            var acLocation = new TextWithValue { Name = "Aircraft location" };
 
             Data = new List<TextWithValue> {
                 isSimConnected,
                 acTitle,
-               
-             
                  simBridgeOps ,
-            
-                bridgeLatency,
-                trackedVAriables,
             };
 
             var savedTitle = SimConnect?.Title;
@@ -83,29 +74,10 @@ namespace BridgeClient.ViewModel
 
           
 
-                trackedVAriables.Value = SimConnect.All.Count.ToString();
                
    
-                bridgeLatency.Value = SimConnect.Latency + "ms";
-                bridgeLatency.IsOK = SimConnect.Latency < 1000;
 
                 acTitle.Value = SimConnect.Title;
-
-                if (!string.IsNullOrWhiteSpace(SimConnect.Title))
-                {
-                    try
-                    {
-                        acLocation.Value = CfgManager.titleToAircraftDirectoryName[SimConnect.Title];
-                    }
-                    catch(Exception )
-                    {
-                        acLocation.Value = "Missing";
-                    }
-                }
-                else
-                {
-                    acLocation.Value = "No aircraft loaded";
-                }
 
                 if (savedTitle != SimConnect.Title && SimConnect.Title != null)
                 {

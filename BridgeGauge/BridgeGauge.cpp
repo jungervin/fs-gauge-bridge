@@ -1,19 +1,22 @@
 #include "common.h"
 #include <string>
 
+#define VAR_COUNT 100
+
 class BridgeGauge
 {
 private:
     HANDLE hSimConnect = 0;
-    std::shared_ptr<std::string> m_str[31];
-    int m_seq = 0;
+    int m_variableCount = 0;
+    int m_lastCommandId = 0;
+    ID m_variableId[VAR_COUNT];
 
     static void s_DispatchProc(SIMCONNECT_RECV* pData, DWORD cbData, void* pContext);
     void DispatchProc(SIMCONNECT_RECV* pData, DWORD cbData);
 
 public:
     bool Initialize();
-    bool OnFrameUpdate(double deltaTime);
+    bool OnFrameUpdate();
     bool Quit();
 };
 
@@ -24,49 +27,18 @@ enum ClientData {
     ReadFromSim = 1,
 };
 
-enum ClientDataSize {
-    WriteToSimSize = (256 * 31) + 4,
-    ReadFromSimSize = (8 * 31) + 4,
-};
-
 struct WRITE_TO_SIM {
-    char data1[256];
-    char data2[256];
-    char data3[256];
-    char data4[256];
-    char data5[256];
-    char data6[256];
-    char data7[256];
-    char data8[256];
-    char data9[256];
-    char data10[256];
-    char data11[256];
-    char data12[256];
-    char data13[256];
-    char data14[256];
-    char data15[256];
-    char data16[256];
-    char data17[256];
-    char data18[256];
-    char data19[256];
-    char data20[256];
-    char data21[256];
-    char data22[256];
-    char data23[256];
-    char data24[256];
-    char data25[256];
-    char data26[256];
-    char data27[256];
-    char data28[256];
-    char data29[256];
-    char data30[256];
-    char data31[256];
-    int seq;
+    char name[256];
+    int index;
+    int isSet;
+    double value;
+    int commandId;
 };
 
-struct READ_FROM_WIM {
-    double value[31];
-    int seq;
+struct READ_FROM_SIM {
+    double value[100];
+    int valueCount;
+    int lastCommandId;
 };
 
 void BridgeGauge::s_DispatchProc(SIMCONNECT_RECV* pData, DWORD cbData, void* pContext)
@@ -85,21 +57,21 @@ bool BridgeGauge::Initialize()
     {
         log("SimConnect connected");
 
-        SimConnect_MapClientDataNameToID(hSimConnect, "ReadFromSim2", ClientData::ReadFromSim);
-        SimConnect_MapClientDataNameToID(hSimConnect, "WriteToSim2", ClientData::WriteToSim);
+        SimConnect_MapClientDataNameToID(hSimConnect, "BRIDGE_ReadFromSim", ClientData::ReadFromSim);
+        SimConnect_MapClientDataNameToID(hSimConnect, "BRIDGE_WriteToSim", ClientData::WriteToSim);
 
         SimConnect_CreateClientData(hSimConnect,
             ClientData::ReadFromSim,
-            ClientDataSize::ReadFromSimSize,
+            sizeof(READ_FROM_SIM),
             SIMCONNECT_CREATE_CLIENT_DATA_FLAG_DEFAULT);
 
         SimConnect_CreateClientData(hSimConnect,
             ClientData::WriteToSim,
-            ClientDataSize::WriteToSimSize,
+            sizeof(WRITE_TO_SIM),
             SIMCONNECT_CREATE_CLIENT_DATA_FLAG_DEFAULT);
 
-        SimConnect_AddToClientDataDefinition(hSimConnect, ClientData::ReadFromSim, 0, ClientDataSize::ReadFromSimSize, 0, 0);
-        SimConnect_AddToClientDataDefinition(hSimConnect, ClientData::WriteToSim, 0, ClientDataSize::WriteToSimSize, 0, 0);
+        SimConnect_AddToClientDataDefinition(hSimConnect, ClientData::ReadFromSim, 0, sizeof(READ_FROM_SIM), 0, 0);
+        SimConnect_AddToClientDataDefinition(hSimConnect, ClientData::WriteToSim, 0, sizeof(WRITE_TO_SIM), 0, 0);
 
         SimConnect_CallDispatch(hSimConnect, s_DispatchProc, static_cast<BridgeGauge*>(this));
 
@@ -126,27 +98,32 @@ bool BridgeGauge::Initialize()
     return true;
 }
 
-bool BridgeGauge::OnFrameUpdate(double deltaTime)
+bool BridgeGauge::OnFrameUpdate()
 {
-    if (m_str[0] != nullptr) {
+    READ_FROM_SIM data;
+    data.lastCommandId = m_lastCommandId;
+    data.valueCount = m_variableCount;
+    for (int i = 0; i < VAR_COUNT; i++) 
+    {
 
-        READ_FROM_WIM data;
-        data.seq = m_seq;
-
-        for (int i = 0; i < 31; i++)
+        if (i >= m_variableCount) {
+            data.value[i] = -99;
+        }
+        else
         {
-            execute_calculator_code(m_str[i]->c_str(), &data.value[i], 0, 0);
+            data.value[i] = get_named_variable_typed_value(m_variableId[i], get_units_enum("number"));
+
         }
 
-        SimConnect_SetClientData(hSimConnect,
-            ClientData::ReadFromSim,
-            ClientData::ReadFromSim,
-            SIMCONNECT_CLIENT_DATA_SET_FLAG_DEFAULT,
-            0,
-            ClientDataSize::ReadFromSimSize,
-            &data);
     }
 
+    SimConnect_SetClientData(hSimConnect,
+        ClientData::ReadFromSim,
+        ClientData::ReadFromSim,
+        SIMCONNECT_CLIENT_DATA_SET_FLAG_DEFAULT,
+        0,
+        sizeof(READ_FROM_SIM),
+        &data);
     return true;
 }
 
@@ -164,7 +141,7 @@ void BridgeGauge::DispatchProc(SIMCONNECT_RECV* pData, DWORD cbData)
     }
     else if (pData->dwID == SIMCONNECT_RECV_ID::SIMCONNECT_RECV_ID_EVENT_FRAME)
     {
-        GLOBAL_INSTANCE.OnFrameUpdate(0);
+        GLOBAL_INSTANCE.OnFrameUpdate();
     }
     else if (pData->dwID == SIMCONNECT_RECV_ID::SIMCONNECT_RECV_ID_CLIENT_DATA)
     {
@@ -172,46 +149,31 @@ void BridgeGauge::DispatchProc(SIMCONNECT_RECV* pData, DWORD cbData)
 
         auto recv_data = static_cast<SIMCONNECT_RECV_CLIENT_DATA*>(pData);
         auto data = (WRITE_TO_SIM*)(&recv_data->dwData);
-        // char* str = (char*)(&recv_data->dwData);
-        m_str[0] = std::make_shared<std::string>(data->data1);
-        m_str[1] = std::make_shared<std::string>(data->data2);
-        m_str[2] = std::make_shared<std::string>(data->data3);
-        m_str[3] = std::make_shared<std::string>(data->data4);
-        m_str[4] = std::make_shared<std::string>(data->data5);
-        m_str[5] = std::make_shared<std::string>(data->data6);
-        m_str[6] = std::make_shared<std::string>(data->data7);
-        m_str[7] = std::make_shared<std::string>(data->data8);
-        m_str[8] = std::make_shared<std::string>(data->data9);
-        m_str[9] = std::make_shared<std::string>(data->data10);
-        m_str[10] = std::make_shared<std::string>(data->data11);
-        m_str[11] = std::make_shared<std::string>(data->data12);
-        m_str[12] = std::make_shared<std::string>(data->data13);
-        m_str[13] = std::make_shared<std::string>(data->data14);
-        m_str[14] = std::make_shared<std::string>(data->data15);
-        m_str[15] = std::make_shared<std::string>(data->data16);
-        m_str[16] = std::make_shared<std::string>(data->data17);
-        m_str[17] = std::make_shared<std::string>(data->data18);
-        m_str[18] = std::make_shared<std::string>(data->data19);
-        m_str[19] = std::make_shared<std::string>(data->data20);
-        m_str[20] = std::make_shared<std::string>(data->data21);
-        m_str[21] = std::make_shared<std::string>(data->data22);
-        m_str[22] = std::make_shared<std::string>(data->data23);
-        m_str[23] = std::make_shared<std::string>(data->data24);
-        m_str[24] = std::make_shared<std::string>(data->data25);
-        m_str[25] = std::make_shared<std::string>(data->data26);
-        m_str[26] = std::make_shared<std::string>(data->data27);
-        m_str[27] = std::make_shared<std::string>(data->data28);
-        m_str[28] = std::make_shared<std::string>(data->data29);
-        m_str[29] = std::make_shared<std::string>(data->data30);
-        m_str[30] = std::make_shared<std::string>(data->data31);
-        m_seq = data->seq;
 
-       // log(m_str[0]->c_str());
+        if (data->isSet == 1) 
+        {
+            m_variableId[data->index] = register_named_variable(data->name);
+
+            set_named_variable_value(m_variableId[data->index], data->value);
+        }
+        else
+        {
+            m_variableCount = data->index + 1;
+           log("Register " + std::string(data->name) + " " + std::to_string(m_variableCount));
+            m_variableId[data->index] = register_named_variable(data->name);
+            
+        }
+
+        m_lastCommandId = data->commandId;
     }
     else if (pData->dwID == SIMCONNECT_RECV_ID::SIMCONNECT_RECV_ID_EXCEPTION)
     {
         SIMCONNECT_RECV_EXCEPTION* ex = static_cast<SIMCONNECT_RECV_EXCEPTION*>(pData);
         log("SimConnect EXCEPTION: " + std::to_string(ex->dwException));
+    }
+    else if (pData->dwID == SIMCONNECT_RECV_ID_OPEN)
+    {
+        log("SimConnect Open");
     }
     else 
     {

@@ -44,7 +44,9 @@ function updateBridgeVariables() {
 		console.log("### " + e);
 	}
 
-	setTimeout(updateBridgeVariables, 200);
+
+	requestAnimationFrame(updateBridgeVariables);
+	//setTimeout(updateBridgeVariables, 200);
 }
 
 function notifyInstalled() {

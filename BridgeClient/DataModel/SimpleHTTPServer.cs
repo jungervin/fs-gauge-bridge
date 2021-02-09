@@ -249,30 +249,11 @@ class SimpleHTTPServer
         }
     }
 
-    public static void TakeOperation(ReadOperationBatch op, double[] opResult)
+    public static void TakeOperation(WSValue[] values)
     {
         WSMessage data = new WSMessage();
         data.type = "data";
-        data.values = op.Lines.Select((l,i) => new WSValue
-        {
-            name = l.Key,
-            unit = l.Unit,
-            value = opResult[i],
-
-        }).ToArray();
-
-        Broadcast(data);
-    }
-
-    public static void TakeOperation(WSValue value)
-    {
-        WSMessage data = new WSMessage();
-        data.type = "data";
-        data.values = new WSValue[]
-        {
-            value,
-        };
-
+        data.values = values;
         Broadcast(data);
     }
 
@@ -289,10 +270,10 @@ class SimpleHTTPServer
                     break;
                 case "write":
                     {
-
                         foreach (var v in msg.values)
                         {
-                            SimConnectViewModel.Instance.Write(v.name, v.unit, double.Parse((string)v.value));
+                            v.value = double.Parse((string)v.value);
+                            SimConnectViewModel.Instance.Write(v);
                         }
                     }
                     // SimConnectViewModel.Instance.Write((string)data["name"], (string)data["unit"], double.Parse((string)data["value"]));
