@@ -23,6 +23,7 @@ namespace BridgeClient.DataModel
         public double pixel_size_h { get; set; }
 
         public string panel_path { get; set; }
+        public string panel_name { get; set; }
         public HtmlGauge htmlgauge00 { get; set; } = new HtmlGauge();
 
     }
@@ -46,7 +47,7 @@ namespace BridgeClient.DataModel
                     Trace.WriteLine($"CFG: Loading from {cfg} ({resolvedCfgPath})");
 
                     var aircraftCfg = new CfgFile(resolvedCfgPath);
-                    aircraftCfg.ReadMultipleSections("FLTSIM.", (section) =>
+                    aircraftCfg.ReadMultipleSections("FLTSIM.", (section, sectionTitle) =>
                     {
                         if (section.ContainsKey("title"))
                             Trace.WriteLine($"CFG: Aircraft.cfg: Title: {section["title"]}");
@@ -67,7 +68,7 @@ namespace BridgeClient.DataModel
                     {
                         var panelCfg = new CfgFile(resolvedPanelCfg);
                         var gauges = new List<VCockpitConfigEntry>();
-                        panelCfg.ReadMultipleSections("VCOCKPIT0", (section) =>
+                        panelCfg.ReadMultipleSections("VCOCKPIT0", (section, sectionTitle) =>
                         {
                             var cfgEntry = new VCockpitConfigEntry();
                             var gaugeKey = section.Keys.FirstOrDefault(j => j.StartsWith("htmlgauge"));
@@ -85,7 +86,7 @@ namespace BridgeClient.DataModel
                                 cfgEntry.htmlgauge00.width = int.Parse(key[3]);
                                 cfgEntry.htmlgauge00.height = int.Parse(key[4]);
                                 cfgEntry.panel_path = relativePanelXml;
-
+                                cfgEntry.panel_name = sectionTitle;
                                 cfgEntry.size_mm_w = int.Parse( section["size_mm"].Split(',')[0]);
                                 cfgEntry.size_mm_h = int.Parse(section["size_mm"].Split(',')[1]);
                                 cfgEntry.pixel_size_w = int.Parse(section["pixel_size"].Split(',')[0]);

@@ -277,11 +277,17 @@ namespace BridgeClient
 
                             //  Trace.WriteLine("Add GET: " + value.name);
 
+                            m_pendingWrites.Add(new WSValue { name = value.name, unit = value.unit, value = value.value });
+
                             m_pendingWrites.Add(new WSValue { name = value.name, unit = value.unit });
+                        }
+                        else
+                        {
+                            m_pendingWrites.Add(new WSValue { name = value.name, unit = value.unit, value = value.value });
+
                         }
                         // Trace.WriteLine("Add SET: " + value.name);
 
-                        m_pendingWrites.Add(new WSValue { name = value.name, unit = value.unit, value = value.value });
 
 
                         MaybeTriggerWriteToSim();

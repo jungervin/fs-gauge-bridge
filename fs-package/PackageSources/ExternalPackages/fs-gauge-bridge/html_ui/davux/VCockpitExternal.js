@@ -1,6 +1,7 @@
 var VCockpitExternal;
 
 function CreateVCockpitExternal() {
+  VCockpitExternal = this;
   function installShims() {
     // BUG: fastToFixed returns .-07, breaks everything.
     function normalToFixed(num, p) { return num.toFixed(p); }
@@ -21,14 +22,13 @@ function CreateVCockpitExternal() {
   // Asobo decided to convert the cfg file where some_key becomes someKey.
   function convertToCfg(cfgData) {
     let ret = {};
-    for (var d in cfgData) {
-      let key = d;
+    for (var key in cfgData) {
+      var dataForKey = cfgData[key];
       if (key.indexOf('_') > 0) {
         var us = key.indexOf('_');
-        var key2 = key.substring(0, us) + key.substring(us + 1, us + 2).toUpperCase() + key.substring(us + 2, key.length);
-        key = key2;
+        key = key.substring(0, us) + key.substring(us + 1, us + 2).toUpperCase() + key.substring(us + 2, key.length);
       }
-      ret[key] = cfgData[d];
+      ret[key] = dataForKey;
     }
     return ret;
   }
@@ -56,7 +56,7 @@ function CreateVCockpitExternal() {
     }
 
     window.globalPanelData = {
-      sName: "External Gauge Bridge",
+      sName: selectedInstrumentData.panel_name,
       vDisplaySize: { x: selectedInstrument.pixel_size_x, y: selectedInstrument.pixel_size_y },
       vLogicalSize: { x: selectedInstrument.size_mm_x, y: selectedInstrument.size_mm_y },
       sConfigFile: selectedInstrumentData.panel_path,

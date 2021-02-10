@@ -37,7 +37,7 @@ namespace BridgeClient.DataModel
             }
         }
 
-        public void ReadMultipleSections(string section, Action<Dictionary<string,string>> eachSectionCallback, int startId = 0, int minId = 20)
+        public void ReadMultipleSections(string section, Action<Dictionary<string,string>, string> eachSectionCallback, int startId = 0, int minId = 20)
         {
             int id = startId;
             while (true)
@@ -45,7 +45,7 @@ namespace BridgeClient.DataModel
                 var sectionTitle = $"{section}{id}";
                 if (Values.ContainsKey(sectionTitle))
                 {
-                    eachSectionCallback(Values[sectionTitle]);
+                    eachSectionCallback(Values[sectionTitle], sectionTitle);
                     id++;
                 }
                 else

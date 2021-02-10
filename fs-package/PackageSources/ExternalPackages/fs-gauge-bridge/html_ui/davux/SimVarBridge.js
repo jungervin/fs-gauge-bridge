@@ -9,6 +9,8 @@ function CreateSimVarBridge() {
     this.AllData = ALL;
 
     function doSend(data) {
+        if (!ws || ws.readyState != 1) return;
+
         try {
             ws.send(JSON.stringify(data));
         } catch (ex) {
@@ -80,24 +82,11 @@ function CreateSimVarBridge() {
         name = SanitizeName(name);
         unit = SanitizeUnit(unit);
 
-        if (name.startsWith("K:")) {
+        if (!name.startsWith("K:")) {
             // Keys aren't read and need to be sent immediately
-            doSend({type:"write", values: [ {name, unit, value: value.toString()} ]});
-        } else {
-            if (name in ALL) {
-                var currentValue = ALL[name];
-                if (value !== currentValue) {
-                    // Assume the set will work and that we'll win.
-                    ALL[name] = value;
-                    doSend({
-                        type:"write", 
-                        values: [ {name, unit, value: value.toString()}]
-                    });
-                }
-            } else {
-                AdviseSimVar(name, unit);
-            }
+            ALL[name] = value;
         }
+        doSend({type:"write", values: [ {name, unit, value: value.toString()} ]});
         return new Promise(function (resolve, reject) { resolve(); });
     }
 
