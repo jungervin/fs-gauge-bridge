@@ -9,7 +9,8 @@ function CreateVCockpitExternal() {
     // Tell everything that we're ready
     BaseInstrument.allInstrumentsLoaded = true;
     SimVarBridge.IsReady = function () { return true; };
-    SimVar.IsReady = SimVarBridge.IsReady;  }
+    SimVar.IsReady = SimVarBridge.IsReady;  
+  }
 
   function CreatePanel() {
     var vpanel = document.createElement('vcockpit-panel');

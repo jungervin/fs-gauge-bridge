@@ -118,7 +118,7 @@ namespace BridgeClient.DataModel
                 m_simConnect.OnRecvQuit += new SimConnect.RecvQuitEventHandler(OnSimConnectRecvQuit);
                 m_simConnect.OnRecvException += new SimConnect.RecvExceptionEventHandler(OnSimConnectRecvException);
 
-                m_afterConnected();
+               
             }
             catch (COMException)
             {
@@ -137,6 +137,7 @@ namespace BridgeClient.DataModel
         {
             Trace.WriteLine("SIMCONNECT: Connected to sim");
             Connected(true);
+            m_afterConnected();
         }
 
         private void OnSimConnectRecvQuit(SimConnect sender, SIMCONNECT_RECV data)

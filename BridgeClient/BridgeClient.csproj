@@ -155,7 +155,6 @@
     <PostBuildEvent>
 
 xcopy "." "$(SolutionDir)\fs-package\PackageSources\bin\" /s /e /Y
-xcopy "$(SolutionDir)\fs-package\PackageSources\ExternalPackages" "..\ExternalPackages\" /s /e /Y
 
 </PostBuildEvent>
   </PropertyGroup>

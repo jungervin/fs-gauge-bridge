@@ -2,7 +2,6 @@ var SimVar;
 
 (function (SimVar) {
     Include.addScript("/JS/Types.js");
-
     class SimVarValue {
         constructor(_name = "", _unit = "number", _type) {
             this.__type = "SimVarValue";
@@ -11,10 +10,6 @@ var SimVar;
             this.unit = _unit;
         }
     }
-    SimVar.SimVarValue = SimVarValue;
-    SimVar.IsReady = SimVarBridge.IsReady;
-    SimVar.GetSimVarValue = SimVarBridge.GetSimVarValue;
-
     class SimVarBatch {
         constructor(_simVarCount, _simVarIndex) {
             this.wantedNames = [];
@@ -45,28 +40,14 @@ var SimVar;
         }
     }
     SimVar.SimVarBatch = SimVarBatch;
-    function GetSimVarArrayValues(simvars, callback, dataSource = "") {
-        // console.error('## GetSimVarArrayValues: ' + JSON.stringify(simvars));
-        // TODO
+    SimVar.SimVarValue = SimVarValue;
 
-        for (var i = 0; i < simvars.length; i++)
-        {
-            SimVarBridge.GetSimVarValue(simvars.wantedNames[i], simvars.wantedUnits[i]);
-        }
-
-      //  callback();
-    }
-    SimVar.GetSimVarArrayValues = GetSimVarArrayValues;
-    SimVar.SetSimVarValue = SimVarBridge.SetSimVarValue;
+    SimVar.IsReady = SimVarBridge.IsReady;
+    SimVar.GetSimVarValue = SimVarBridge.GetSimVarValue;
+    SimVar.GetSimVarArrayValues = SimVarBridge.GetSimVarArrayValues;
+    SimVar.SetSimVarValue = SimVarBridge.SetSimVarValue; 
     SimVar.GetGlobalVarValue = SimVarBridge.GetGlobalVarValue;
-
     SimVar.GetGameVarValue = SimVarBridge.GetGameVarValue;
-    function SetGameVarValue(name, unit, value) {
-        console.log('### SetGameVarValue: ' + name);
-        return new Promise(function (resolve, reject) {
-            resolve();
-        });
-    }
-    SimVar.SetGameVarValue = SetGameVarValue;
+    SimVar.SetGameVarValue = SimVarBridge.SetGameVarValue;
 })(SimVar || (SimVar = {}));
 //# sourceMappingURL=simvar.js.map

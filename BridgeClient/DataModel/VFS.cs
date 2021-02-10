@@ -127,7 +127,7 @@ namespace BridgeClient.DataModel
 
         private void MapAndAddPackagesFromSettings()
         {
-            for (var i = 0; i < 3; i++)
+            for (var i = 0; i < _settings.Source.Length; i++)
             {
                 var source = Environment.ExpandEnvironmentVariables(_settings.Source[i]);
                 var mapped = Environment.ExpandEnvironmentVariables(_settings.Mapped[i]);

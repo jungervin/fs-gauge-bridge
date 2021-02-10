@@ -19,7 +19,6 @@ function CreateSimVarBridge() {
     function doConnect() {
         ws = new WebSocket("ws://" + window.location.host + "/ws");
         ws.onopen = () => {
-            window.WS = ws;
             console.log("WS: Connected");
             doSend({type:"hello", values: keys_data});
         };
@@ -36,8 +35,8 @@ function CreateSimVarBridge() {
             }
         };
         ws.onclose = () => {
-            console.log("WS: Disconnected. Reconnecting in 2 seconds...");
-            setTimeout(doConnect, 2000);
+            console.log("WS: Disconnected. Reconnecting in 10 seconds...");
+            setTimeout(doConnect, 10 * 1000);
         };
     }
     
@@ -47,19 +46,15 @@ function CreateSimVarBridge() {
             keys_data.push({name, unit});
             keys_list.push(key);
 
-            doSend({type:"read", values: [
-                {name, unit}
-            ]});
+            doSend({type:"read", values: [ {name, unit} ]});
         }
     }
     
     function GetSimVarValue(name, unit, dataSource = "") 
     {
-        if (name.startsWith("A:")) {
-            name = name.substring(2);
-        }
-        name = name.toUpperCase();
-        unit = unit.toLowerCase();
+        name = SanitizeName(name);
+        unit = SanitizeUnit(unit);
+
         AdviseSimVar(name, unit);
 
         switch (unit.toLowerCase()) {
@@ -68,12 +63,12 @@ function CreateSimVarBridge() {
             case "pbh":
             case "pid_struct":
             case "xyz":
-                console.log("### datatype ERR: " + name)
+                console.log("### GetSimVarValue datatype ERR: " + name)
                 break;
         }
 
         if (name in ALL) {
-            if (unit == "bool" || unit == "boolean") {
+            if (unit == "bool") {
                 return !!(ALL[name]);
             }
             return ALL[name];
@@ -82,100 +77,121 @@ function CreateSimVarBridge() {
     }
 
     function SetSimVarValue(name, unit, value, dataSource = "") {
-        name = name.toUpperCase();
-        unit = unit.toLowerCase();
+        name = SanitizeName(name);
+        unit = SanitizeUnit(unit);
 
-        if (name.startsWith("A:")) {
-            name = name.substring(2);
-        }
         if (name.startsWith("K:")) {
+            // Keys aren't read and need to be sent immediately
             doSend({type:"write", values: [ {name, unit, value: value.toString()} ]});
         } else {
             if (name in ALL) {
                 var currentValue = ALL[name];
                 if (value !== currentValue) {
+                    // Assume the set will work and that we'll win.
                     ALL[name] = value;
-
-                    let newValue = {name, unit, value: value.toString()};
-                    try { 
-                        ws.send(JSON.stringify({type:"write", values: [newValue]}));
-                    } catch (ex) {
-                        console.log(ex);
-                    }
+                    doSend({
+                        type:"write", 
+                        values: [ {name, unit, value: value.toString()}]
+                    });
                 }
-            }
-            else {
+            } else {
                 AdviseSimVar(name, unit);
             }
         }
         return new Promise(function (resolve, reject) { resolve(); });
     }
 
-    function GetGameVarValue(name, unit, param1 = 0, param2 = 0) {
+    function SanitizeName(name) {
         name = name.toUpperCase();
+        if (name.startsWith("A:")) {
+            name = name.substring(2);
+        }
+        return name;
+    }
+
+    function SanitizeUnit(unit) {
         unit = unit.toLowerCase();
+        if (unit.toLowerCase() === "boolean")
+        {
+            unit = "bool";
+        }
+        return unit;
+    }
+
+    function GetGameVarValue(name, unit, param1 = 0, param2 = 0) {
+        name = SanitizeName(name);
+        unit = SanitizeUnit(unit);
+
         if (!name && unit === "glasscockpitsettings") {
-            var ret = {
+            return {
                 AirSpeed: {
                     Initialized: true,
                     ...VCockpitExternal.cockpitCfg
                 }
             };
-            return ret;
         }
 
-        if (unit.toLowerCase() === "boolean")
-        {
-            unit = "bool";
+        for (let gameVar of InGameRelay.GameVars) {
+            if (gameVar[0] == name && gameVar[1] == unit) {
+                if (Array.isArray(gameVar[2])) {
+                    var ret = {};
+                    for (var key of gameVar[2]) {
+                        ret[key] = SimVarBridge.GetSimVarValue("L:GV_" + name + "_" + unit + "_" + key, "Number");
+                    }
+                    return ret;
+                } else {
+                    return SimVarBridge.GetSimVarValue("L:GV_" + name + "_" + unit, "Number");
+                }
+            }
         }
 
-        if (name == "AIRCRAFT ORIENTATION AXIS") {
-            var base = "L:GV_AIRCRAFT ORIENTATION AXIS_XYZ_";
-            return new XYZ({
-                x: SimVarBridge.GetSimVarValue(base + "x", "Number"),
-                y: SimVarBridge.GetSimVarValue(base + "y", "Number"),
-                z: SimVarBridge.GetSimVarValue(base + "z", "Number"),
-                bank: SimVarBridge.GetSimVarValue(base + "bank", "Number"),
-                pitch: SimVarBridge.GetSimVarValue(base + "pitch", "Number"),
-                heading: SimVarBridge.GetSimVarValue(base + "heading", "Number"),
-                lat: SimVarBridge.GetSimVarValue(base + "lat", "Number"),
-                lon: SimVarBridge.GetSimVarValue(base + "lon", "Number"),
-                alt: SimVarBridge.GetSimVarValue(base + "alt", "Number"),
-            });
-        }
-
-        if (name == "AIRCRAFT CROSSOVER SPEED" ||
-            name == "AIRCRAFT CRUISE MACH" ||
-            name == "AIRCRAFT CROSSOVER SPEED FACTOR" ||
-            name == "AIRCRAFT CROSSOVER SPEED FACTOR" ||
-            name == "AIRCRAFT ELEVATOR TRIM NEUTRAL" ||
-            name == "GAME UNIT IS METRIC" ||
-            name == "AIRCRAFT AOA ANGLE" ||
-            name.includes("AIRCRAFT DESIGN SPEED")) {
-            var read = "L:GV_" + name + "_" + unit;
-            return SimVarBridge.GetSimVarValue(read, "Number");
-        }
-        // Any double can be shimmed via InGrameBridge.
+        // Fix by adding to the list in InGameRelay.
         console.log('### GetGameVarValue: ' + name + ' ' + unit);
         return {};
     }
 
     function GetGlobalVarValue(name, unit) {
-        if (name == "ZULU TIME" && unit == "seconds") {
-            var read = "L:GLOB_" + name + "_" + unit;
-            return SimVarBridge.GetSimVarValue(read, "Number");
+        name = SanitizeName(name);
+        unit = SanitizeUnit(unit);
+
+        for (let gameVar of InGameRelay.GlobalVars) {
+            if (gameVar[0] == name && gameVar[1] == unit) {
+                return SimVarBridge.GetSimVarValue("L:GLOB_" + name + "_" + unit, "Number");
+            }
         }
-        // Any double can be shimmed via InGrameBridge.
+
+        // Fix by adding to the list in InGameRelay.
         console.log('### GetGlobalVarValue: ' + name + " unit=" + unit);
         return null;
     }
+
+    function SetGameVarValue(name, unit, value) {
+        console.log('### SetGameVarValue: ' + name);
+        return new Promise(function (resolve, reject) {
+            resolve();
+        });
+    }
+
+    function GetSimVarArrayValues(simvars, callback, dataSource = "") {
+        // console.error('## GetSimVarArrayValues: ' + JSON.stringify(simvars));
+        // TODO: fs9gps
+        for (var i = 0; i < simvars.length; i++)
+        {
+            SimVarBridge.GetSimVarValue(simvars.wantedNames[i], simvars.wantedUnits[i]);
+        }
+    }
+    
 
     this.GetSimVarValue = GetSimVarValue;
     this.SetSimVarValue = SetSimVarValue;
     this.GetGameVarValue = GetGameVarValue;
     this.GetGlobalVarValue = GetGlobalVarValue;
+    this.SetGameVarValue = SetGameVarValue;
+    this.GetSimVarArrayValues = GetSimVarArrayValues;
     this.IsReady = function() { return false; }
 
+    // Using only shared features from InGameRelay, prevent the relay from starting.
+    InGameRelay.IsRunningExternally = true;
     setTimeout(doConnect, 0);
 }
 

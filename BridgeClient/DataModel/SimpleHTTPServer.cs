@@ -56,10 +56,11 @@ class SimpleHTTPServer
 
     private void ServerProc()
     {
+        // netsh http add urlacl url=http://+:4200/ user=Everyone
         // netsh advfirewall firewall add rule name="Open Port 4200" dir=in action=allow protocol=TCP localport=4200
         Url = "http://127.0.0.1:" + _port.ToString() + "/";
         Trace.WriteLine($"WEB: Server starting at {Url}");
-        var prefix = "http://127.0.0.1:" + _port.ToString() + "/";
+        var prefix = "http://+:" + _port.ToString() + "/";
         Trace.WriteLine($"WEB: HttpListener prefix: {prefix}");
 
         var listener = new HttpListener();
