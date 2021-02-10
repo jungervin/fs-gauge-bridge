@@ -288,7 +288,15 @@ class SimpleHTTPServer
                     {
                         foreach (var v in msg.values)
                         {
-                            v.value = double.Parse((string)v.value);
+                            if (v.value is UInt64 uintValue)
+                            {
+                                v.value = (double)uintValue;
+                            }
+                            else if (v.value is long longValue)
+                            {
+                                v.value = (double)longValue;
+                            }
+                            // v.value = double.Parse((string)v.value);
                             SimConnectViewModel.Instance.Write(v);
                         }
                     }

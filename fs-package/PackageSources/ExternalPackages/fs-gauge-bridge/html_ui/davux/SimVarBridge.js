@@ -30,6 +30,12 @@ function CreateSimVarBridge() {
             {
                 for (var v in msg.values) {
                     var v = msg.values[v];
+
+                 //   if (v.name.includes("BRIDGE")) {
+                  //      if (ALL[v.name] !== v.value)
+                 //           console.log(v.name + ": " + v.value);
+                 //   }
+
                     ALL[v.name] = v.value;
                 }
             } else {
@@ -86,7 +92,7 @@ function CreateSimVarBridge() {
             // Keys aren't read and need to be sent immediately
             ALL[name] = value;
         }
-        doSend({type:"write", values: [ {name, unit, value: value.toString()} ]});
+        doSend({type:"write", values: [ {name, unit, value: value} ]});
         return new Promise(function (resolve, reject) { resolve(); });
     }
 

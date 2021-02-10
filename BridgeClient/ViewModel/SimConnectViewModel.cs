@@ -139,6 +139,8 @@ namespace BridgeClient
                     ret.Add(wsValue);
                 }
             }
+            SimpleHTTPServer.TakeOperation(ret.ToArray());
+
 
             BridgeCounter.GotFrame();
 
@@ -152,7 +154,6 @@ namespace BridgeClient
                 // Trace.WriteLine("Got unexpectyed " + data.lastCommandId);
             }
 
-            SimpleHTTPServer.TakeOperation(ret.ToArray());
         }
 
         private void OnSimWriteCompleted()
@@ -179,12 +180,16 @@ namespace BridgeClient
                 data.index = m_localVarNames.IndexOf(op.name);
                 // Trace.WriteLine($"LVAR: Set {op.name} to {op.value} (at {data.index})");
             }
-            else
+            else if (op.value == null)
             {
                 data.isSet = 0;
                 data.name = WriteToSim.AllocString(op.name.Remove(0, 2));
                 data.index = m_localVarNames.IndexOf(op.name);
                 Trace.WriteLine($"LVAR: Register data {op.name} at {data.index}");
+            }
+            else
+            {
+                Trace.WriteLine("bad datatype");
             }
 
             data.lastCommandId = ++m_lastCommandId;
