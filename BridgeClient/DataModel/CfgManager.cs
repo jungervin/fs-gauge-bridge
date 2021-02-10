@@ -13,7 +13,6 @@ namespace BridgeClient.DataModel
         public double y { get; set; }
         public double width { get; set; }
         public double height { get; set; }
-
     }
 
     class VCockpitConfigEntry
@@ -40,21 +39,23 @@ namespace BridgeClient.DataModel
             foreach (var cfg in aircraftCfgs)
             {
                 var airplaneDirectoryName = Path.GetFileName(Path.GetDirectoryName(cfg));
-                Trace.WriteLine($"Loading from {cfg}");
                 try
                 {
                     // Load aircraft.cfg
-                    var aircraftCfg = new CfgFile(vfs.Resolve(cfg));
+                    var resolvedCfgPath = vfs.Resolve(cfg);
+                    Trace.WriteLine($"CFG: Loading from {cfg} ({resolvedCfgPath})");
+
+                    var aircraftCfg = new CfgFile(resolvedCfgPath);
                     aircraftCfg.ReadMultipleSections("FLTSIM.", (section) =>
                     {
                         if (section.ContainsKey("title"))
-                            Trace.WriteLine($"Title: {section["title"]}");
+                            Trace.WriteLine($"CFG: Aircraft.cfg: Title: {section["title"]}");
                         titleToAircraftDirectoryName[section["title"].Replace("\"", "")] = airplaneDirectoryName;
                     });
                 }
                 catch (Exception ex)
                 {
-                    Trace.WriteLine("Failed to load panel.cfg " + ex);
+                    Trace.WriteLine("CFG: Failed to load aircraft.cfg " + ex);
                 }
                 try
                 {
@@ -72,7 +73,7 @@ namespace BridgeClient.DataModel
                             var gaugeKey = section.Keys.FirstOrDefault(j => j.StartsWith("htmlgauge"));
                             if (string.IsNullOrWhiteSpace(gaugeKey))
                             {
-                                Trace.WriteLine("Gauge key not found!");
+                                Trace.WriteLine("CFG: Panel.cfg: Gauge key not found!");
                             }
                             else
                             {
@@ -85,8 +86,13 @@ namespace BridgeClient.DataModel
                                 cfgEntry.htmlgauge00.height = int.Parse(key[4]);
                                 cfgEntry.panel_path = relativePanelXml;
 
+                                cfgEntry.size_mm_w = int.Parse( section["size_mm"].Split(',')[0]);
+                                cfgEntry.size_mm_h = int.Parse(section["size_mm"].Split(',')[1]);
+                                cfgEntry.pixel_size_w = int.Parse(section["pixel_size"].Split(',')[0]);
+                                cfgEntry.pixel_size_h = int.Parse(section["pixel_size"].Split(',')[1]);
+
                                 gauges.Add(cfgEntry);
-                                Trace.WriteLine($"htmlgauge: {cfgEntry.htmlgauge00.path}");
+                                Trace.WriteLine($"CFG: Panel.cfg: htmlgauge: {cfgEntry.htmlgauge00.path}");
                             }
 
 
@@ -96,12 +102,12 @@ namespace BridgeClient.DataModel
                     }
                     else
                     {
-                        Trace.WriteLine("No panel.cfg found");
+                        Trace.WriteLine("CFG: No panel.cfg found");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Trace.WriteLine("Failed to load panel.cfg " + ex);
+                    Trace.WriteLine("CFG: Failed to load panel.cfg " + ex);
                 }
                 try
                 {
@@ -116,12 +122,12 @@ namespace BridgeClient.DataModel
                     }
                     else
                     {
-                        Trace.WriteLine("No cockpit.cfg found");
+                        Trace.WriteLine("CFG: No cockpit.cfg found");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Trace.WriteLine("Failed to load panel.cfg " + ex);
+                    Trace.WriteLine("CFG: Failed to load cockpit.cfg " + ex);
                 }
             }
         }

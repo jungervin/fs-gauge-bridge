@@ -9,8 +9,7 @@ function CreateVCockpitExternal() {
     // Tell everything that we're ready
     BaseInstrument.allInstrumentsLoaded = true;
     SimVarBridge.IsReady = function () { return true; };
-    SimVar.IsReady = SimVarBridge.IsReady;
-  }
+    SimVar.IsReady = SimVarBridge.IsReady;  }
 
   function CreatePanel() {
     var vpanel = document.createElement('vcockpit-panel');
@@ -18,6 +17,7 @@ function CreateVCockpitExternal() {
     document.getElementById('main_panel').appendChild(vpanel);
   }
 
+  // Asobo decided to convert the cfg file where some_key becomes someKey.
   function convertToCfg(cfgData) {
     let ret = {};
     for (var d in cfgData) {
@@ -33,8 +33,13 @@ function CreateVCockpitExternal() {
   }
 
   fetch('/all_cfg').then(response => response.json()).then(all_data => {
+    if (all_data.error) {
+      alert("Fatal Error: panel.cfg data not yet available");
+      return;
+    }
 
-    window.cockpitcfg = convertToCfg(all_data.cockpitcfg);
+    VCockpitExternal.cockpitCfg = convertToCfg(all_data.cockpitcfg);
+    VCockpitExternal.panelCfg = all_data.gauges;
 
     var allInstruments = all_data.gauges.map((m, idx) => ({
       sUrl: m.htmlgauge00.path,
@@ -62,4 +67,4 @@ function CreateVCockpitExternal() {
     CreatePanel();
   });
 }
-VCockpitExternal = CreateVCockpitExternal();
+VCockpitExternal = new CreateVCockpitExternal();

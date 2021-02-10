@@ -89,7 +89,7 @@ namespace BridgeClient.DataModel
                     }
                     catch (Exception ex)
                     {
-                        Trace.WriteLine("Failed while talking to sim: " + ex);
+                        Trace.WriteLine("SIMCONNECT: Failed while talking to sim: " + ex);
                         doDisconnected();
                     }
                 }
@@ -110,7 +110,7 @@ namespace BridgeClient.DataModel
 
         private void ConnectInternal()
         {
-            Trace.WriteLine("Connecting to sim...");
+            Trace.WriteLine("SIMCONNECT: Connecting to sim...");
             try
             {
                 m_simConnect = new SimConnect("BridgeGaugeClient", Handle, (uint)WM_USER_SIMCONNECT, null, 0);
@@ -122,26 +122,26 @@ namespace BridgeClient.DataModel
             }
             catch (COMException)
             {
-                Trace.WriteLine("Failed to connect to sim");
+                Trace.WriteLine("SIMCONNECT: Failed to connect to sim");
                 doDisconnected();
             }
         }
 
         private void OnSimConnectRecvException(SimConnect sender, SIMCONNECT_RECV_EXCEPTION data)
         {
-            Trace.WriteLine("Exception received: " + ((uint)data.dwException));
+            Trace.WriteLine("SIMCONNECT: Exception received: " + ((uint)data.dwException));
             doDisconnected();
         }
 
         private void OnSimConnectRecvOpen(SimConnect sender, SIMCONNECT_RECV_OPEN data)
         {
-            Trace.WriteLine("Connected to sim");
+            Trace.WriteLine("SIMCONNECT: Connected to sim");
             Connected(true);
         }
 
         private void OnSimConnectRecvQuit(SimConnect sender, SIMCONNECT_RECV data)
         {
-            Trace.WriteLine("Sim quit");
+            Trace.WriteLine("SIMCONNECT: Sim has quit");
             doDisconnected();
         }
 

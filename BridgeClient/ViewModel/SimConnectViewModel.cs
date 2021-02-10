@@ -17,7 +17,7 @@ namespace BridgeClient
         public static SimConnectViewModel Instance;
 
         public bool IsConnected { get => Get<bool>(); set => Set(value); }
-        public string Title { get => Get<string>(); set => Set(value); }
+        public string Title => All.ContainsKey("TITLE") ? (string)All["TITLE"] : null;
 
         public FpsCounter BridgeCounter { get; }
 
@@ -38,7 +38,6 @@ namespace BridgeClient
 
         private uint m_lastDataRequestId;
         private uint m_lastDefineId;
-        private int m_lastRegisteredLVar = -1;
 
         private bool m_isWaitingForReply = false;
 
@@ -55,11 +54,6 @@ namespace BridgeClient
                 t.SetApartmentState(ApartmentState.STA);
                 t.Start();
             });
-
-          //  var testLVar = new WSValue { name = "L:Test", unit = "number" };
-
-          //  m_localVars[testLVar.name] = testLVar;
-          //  m_localVarNames.Add(testLVar.name);
 
             m_pendingAircraftVarRequests.Enqueue(new WSValue { name = "TITLE", unit = "string" });
         }
@@ -85,21 +79,14 @@ namespace BridgeClient
                     ClientData.ReadFromSim, SIMCONNECT_CLIENT_DATA_PERIOD.ON_SET, SIMCONNECT_CLIENT_DATA_REQUEST_FLAG.CHANGED,
                     0, 0, 0);
 
-
-
-
-                m_simConnect.m_simConnect.OnRecvOpen += (_, __) =>
+                // Begin streaming A:Vars
+                while (m_pendingAircraftVarRequests.Any())
                 {
-                    while (m_pendingAircraftVarRequests.Any())
-                    {
-                        RequestSimData(m_pendingAircraftVarRequests.Dequeue());
-                    }
+                    RequestSimData(m_pendingAircraftVarRequests.Dequeue());
+                }
 
-                    OnSimWriteCompleted();
-                };
-
-
-                
+                // Begin streaming L:vars
+                OnSimWriteCompleted();
             });
 
             Dispatcher.Run();
@@ -108,37 +95,24 @@ namespace BridgeClient
         private void OnRecvSimobjectData(SimConnect sender, SIMCONNECT_RECV_SIMOBJECT_DATA data)
         {
             var value = m_dataRequests[data.dwRequestID];
-
             if (data.dwData[0] is SimDataString256 simData)
             {
                 value.value = simData.value;
-                if (value.name.ToLower() == "title")
-                {
-                    Title = simData.value;
-                }
-
             }
             else if (data.dwData[0] is SimDataDouble simDouble)
             {
                 value.value = simDouble.value;
-
             }
-            else
-            {
-                throw new NotImplementedException();
-            }
+            else throw new NotImplementedException();
 
+            WriteAllValue(value);
+        }
+
+        private void WriteAllValue(WSValue value)
+        {
             All[value.name] = value.value;
 
             SimpleHTTPServer.TakeOperation(new WSValue[] { value });
-        }
-
-        public string GetJson()
-        {
-            lock (m_allLock)
-            {
-                return JsonConvert.SerializeObject(All);
-            }
         }
 
         public KeyValuePair<string, object>[] GetAllSafe()
@@ -152,8 +126,7 @@ namespace BridgeClient
         private void OnRecvClientData(SimConnect sender, SIMCONNECT_RECV_CLIENT_DATA recvData)
         {
             var data = (ReadFromSim)(recvData.dwData[0]);
-
-          //  Trace.WriteLine($"OnRecvClientData {data.lastCommandId}");
+            //  Trace.WriteLine($"OnRecvClientData {data.lastCommandId}");
             var ret = new List<WSValue>();
             lock (m_allLock)
             {
@@ -164,7 +137,6 @@ namespace BridgeClient
                     var wsValue = m_localVars[m_localVarNames[i]];
                     wsValue.value = data.data[i];
                     ret.Add(wsValue);
-                    //  Trace.WriteLine($"{data.seq} {ro.Key[i]}: {data.data[i]}");
                 }
             }
 
@@ -172,86 +144,62 @@ namespace BridgeClient
 
             if (data.lastCommandId == m_lastCommandId)
             {
-                if (m_isWaitingForReply)
-                {
-                   // Dispatcher.CurrentDispatcher.InvokeAsync(() =>
-                   // {
-                        OnSimWriteCompleted();
-
-                    //});
-                  
-                }
+                m_isWaitingForReply = false;
+                MaybeTriggerWriteToSim();
             }
             else
             {
-              //  Trace.WriteLine("Got unexpectyed " + data.lastCommandId);
+                // Trace.WriteLine("Got unexpectyed " + data.lastCommandId);
             }
 
             SimpleHTTPServer.TakeOperation(ret.ToArray());
         }
 
-        WSValue GetNextWriteOperation()
-        {
-            // Writes are highest priority
-            lock (m_writeLock)
-            {
-                var ret = m_pendingWrites.FirstOrDefault();
-                if (ret != null)
-                {
-                    m_pendingWrites.RemoveAt(0);
-                }
-                return ret;
-            }
-        }
-
         private void OnSimWriteCompleted()
         {
             m_isWaitingForReply = false;
-            var op = GetNextWriteOperation();
-            if (op == null)
+            WSValue op;
+            lock (m_writeLock)
             {
-                Trace.WriteLine("null op, Shutting down");
-                return;
+                op = m_pendingWrites.FirstOrDefault();
+                if (op == null)
+                {
+                    return;
+                }
+                m_pendingWrites.RemoveAt(0);
             }
 
-            WriteToSim data = new WriteToSim();
-            
+            var data = new WriteToSim();
+
             if (op.value is double value)
             {
-             //   Trace.WriteLine("SET " + op.name);
-
                 data.isSet = 1;
-                data.name = WriteToSim.AllocString(op.name.Remove(0,2));
-
+                data.name = WriteToSim.AllocString(op.name.Remove(0, 2));
                 data.value = value;
                 data.index = m_localVarNames.IndexOf(op.name);
-              //  Trace.WriteLine("SET: " + op.name + " " + data.index);
-
+                // Trace.WriteLine($"LVAR: Set {op.name} to {op.value} (at {data.index})");
             }
             else
             {
                 data.isSet = 0;
-                data.name = WriteToSim.AllocString(op.name.Remove(0,2));
+                data.name = WriteToSim.AllocString(op.name.Remove(0, 2));
                 data.index = m_localVarNames.IndexOf(op.name);
-              //  Trace.WriteLine("REGISTER: " + op.name + " " + data.index);
-
+                Trace.WriteLine($"LVAR: Register data {op.name} at {data.index}");
             }
-
-
-
 
             data.lastCommandId = ++m_lastCommandId;
 
             m_isWaitingForReply = true;
-            m_simConnect?.m_simConnect?.SetClientData(ClientData.WriteToSim, 
-                ClientData.WriteToSim, SIMCONNECT_CLIENT_DATA_SET_FLAG.DEFAULT,0, data);
+            m_simConnect?.m_simConnect?.SetClientData(ClientData.WriteToSim,
+                ClientData.WriteToSim, SIMCONNECT_CLIENT_DATA_SET_FLAG.DEFAULT, 0, data);
+            BridgeCounter.GotFrame();
         }
 
         private void MaybeTriggerWriteToSim()
         {
             if (IsConnected && !m_isWaitingForReply)
             {
-             //   Trace.WriteLine("REstarting queueu");
+                //   Trace.WriteLine("REstarting queueu");
                 OnSimWriteCompleted();
             }
         }
@@ -265,6 +213,11 @@ namespace BridgeClient
 
             foreach (var n in avars)
             {
+                if (n.name.StartsWith("A:"))
+                {
+                    n.name = n.name.Remove(0, 2);
+                }
+
                 if (!m_aircraftVars.ContainsKey(n.name))
                 {
                     if (IsConnected)
@@ -284,12 +237,11 @@ namespace BridgeClient
                 if (!m_localVars.ContainsKey(n.name))
                 {
                     m_localVarNames.Add(n.name);
+                    m_localVars[n.name] = n;
                     lock (m_writeLock)
                     {
-                        m_pendingWrites.Add(n);
+                        m_pendingWrites.Add(new WSValue { name = n.name, unit = n.unit });
                     }
-
-                    m_localVars[n.name] = n;
                     MaybeTriggerWriteToSim();
                 }
                 else
@@ -298,7 +250,6 @@ namespace BridgeClient
                 }
             }
         }
-
 
         internal void Write(WSValue value)
         {
@@ -311,11 +262,10 @@ namespace BridgeClient
             {
                 lock (m_writeLock)
                 {
-
-
                     var existing = m_pendingWrites.FirstOrDefault(w => w.name == value.name && w.value != null);
                     if (existing != null)
                     {
+                        //  Trace.WriteLine($"Update existing queue value {existing.name} {value.name} {value.value}");
                         existing.value = value.value;
                     }
                     else
@@ -325,10 +275,16 @@ namespace BridgeClient
                             m_localVarNames.Add(value.name);
                             m_localVars[value.name] = value;
 
+                            //  Trace.WriteLine("Add GET: " + value.name);
+
                             m_pendingWrites.Add(new WSValue { name = value.name, unit = value.unit });
                         }
+                        // Trace.WriteLine("Add SET: " + value.name);
 
-                        m_pendingWrites.Add(value);
+                        m_pendingWrites.Add(new WSValue { name = value.name, unit = value.unit, value = value.value });
+
+
+                        MaybeTriggerWriteToSim();
                     }
                 }
             }
@@ -352,6 +308,8 @@ namespace BridgeClient
                 m_simConnect.m_simConnect.RegisterDataDefineStruct<SimDataDouble>(id);
             }
 
+            Trace.WriteLine($"SIMCONNECT: Register data {value.name} ({value.unit}) {id}");
+
             var dataRequest = (m_lastDataRequestId++);
             m_simConnect.m_simConnect.RequestDataOnSimObject(dataRequest.ToEnum(), id, SimConnect.SIMCONNECT_OBJECT_ID_USER,
                 SIMCONNECT_PERIOD.VISUAL_FRAME, SIMCONNECT_DATA_REQUEST_FLAG.DEFAULT, 0, 0, 0);
@@ -367,8 +325,11 @@ namespace BridgeClient
             {
                 var nextEventId = (m_lastEvent++).ToEnum();
                 m_events[name] = nextEventId;
+
+                Trace.WriteLine($"SIMCONNECT: Mapping event {name} to {nextEventId}");
                 m_simConnect.m_simConnect.MapClientEventToSimEvent(nextEventId, name);
             }
+            Trace.WriteLine($"SIMCONNECT: Trigger event {name} ({value})");
 
             m_simConnect.m_simConnect.TransmitClientEvent(0U, m_events[name], value, (Enum)NOTIFICATION_GROUPS.GENERIC, SIMCONNECT_EVENT_FLAG.GROUPID_IS_PRIORITY);
         }

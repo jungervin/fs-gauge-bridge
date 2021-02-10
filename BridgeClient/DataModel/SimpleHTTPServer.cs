@@ -11,7 +11,7 @@ using BridgeClient;
 using Newtonsoft.Json;
 using BridgeClient.DataModel;
 using System.Net.WebSockets;
-
+using System.Windows;
 
 public class WSMessage
 {
@@ -40,7 +40,8 @@ class SimpleHTTPServer
     private WebserverSettings _settings;
     private VFS _vfs;
     private int _port;
-   static  private List<Action<string>> m_sockets = new List<Action<string>>();
+    static private List<Action<string>> m_sockets = new List<Action<string>>();
+    private static object m_socketLock = new object();
 
     public SimpleHTTPServer(VFS vfs, WebserverSettings settings)
     {
@@ -55,12 +56,24 @@ class SimpleHTTPServer
 
     private void ServerProc()
     {
+        // netsh advfirewall firewall add rule name="Open Port 4200" dir=in action=allow protocol=TCP localport=4200
         Url = "http://127.0.0.1:" + _port.ToString() + "/";
-        Trace.WriteLine($"Server starting at {Url}");
+        Trace.WriteLine($"WEB: Server starting at {Url}");
+        var prefix = "http://127.0.0.1:" + _port.ToString() + "/";
+        Trace.WriteLine($"WEB: HttpListener prefix: {prefix}");
 
         var listener = new HttpListener();
-        listener.Prefixes.Add(Url);
-        listener.Start();
+        listener.Prefixes.Add(prefix);
+
+        try
+
+        {
+            listener.Start();
+        }
+        catch(Exception ex)
+        {
+            MessageBox.Show("Unable to bind webserver:\n" + ex);
+        }
         while (true)
         {
             try
@@ -80,7 +93,6 @@ class SimpleHTTPServer
         string filename = context.Request.Url.AbsolutePath.Substring(1).ToLower();
 
         context.Response.AddHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-
         context.Response.AddHeader("Pragma", "no-cache");
         context.Response.AddHeader("expires", "0");
 
@@ -107,7 +119,7 @@ class SimpleHTTPServer
                 data.cockpitcfg = CfgManager.aircraftDirectoryNameToCockpitCfg[aircraftFolder].Values["AIRSPEED"];
 
                 var json = JsonConvert.SerializeObject(data);
-                var bytes = Encoding.UTF8.GetBytes(json);
+                var bytes = context.Request.ContentEncoding.GetBytes(json);
 
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
                 context.Response.ContentType = "text/json";
@@ -116,7 +128,10 @@ class SimpleHTTPServer
             }
             else
             {
-                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                var bytes = context.Request.ContentEncoding.GetBytes("{\"error\":\"true\"}");
+                context.Response.OutputStream.Write(bytes, 0, bytes.Length);
+                context.Response.ContentType = "text/json";
+                context.Response.StatusCode = (int)HttpStatusCode.OK;
             }
         }
         else
@@ -125,15 +140,14 @@ class SimpleHTTPServer
             if (pathOnDisk == null && filename.StartsWith("vfs/"))
             {
                 filename = filename.Remove(0, 4);
-         
-                    pathOnDisk = _vfs.Resolve(filename);
-                    Trace.WriteLine("VFS: " + pathOnDisk);
-            
+
+                pathOnDisk = _vfs.Resolve(filename);
+                Trace.WriteLine("VFS: " + pathOnDisk);
             }
 
             if (pathOnDisk != null)
             {
-                //  Trace.WriteLine($"Serving {filename} -> {pathOnDisk}");
+                // Trace.WriteLine($"WEB: {filename} -> {pathOnDisk}");
                 try
                 {
                     Stream input = new FileStream(pathOnDisk, FileMode.Open);
@@ -155,7 +169,7 @@ class SimpleHTTPServer
                 }
                 catch (Exception ex)
                 {
-                    Trace.WriteLine("## Failed reading file " + ex);
+                    Trace.WriteLine("WEB: ### Failed reading file " + ex);
                     context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 }
             }
@@ -164,7 +178,7 @@ class SimpleHTTPServer
                 if (!filename.Contains(".js.map") &&
                     filename != "favicon.ico")
                 {
-                    Console.WriteLine("## 404: " + filename);
+                    Console.WriteLine("WEB: ### 404: " + filename);
                 }
                 context.Response.StatusCode = (int)HttpStatusCode.NotFound;
             }
@@ -172,29 +186,34 @@ class SimpleHTTPServer
         context.Response.OutputStream.Close();
     }
 
-
     private async void HandleWebSocketRequest(HttpListenerContext context)
     {
         try
         {
-            Trace.WriteLine("WS: Connecting to ws client");
             var socketContext = await context.AcceptWebSocketAsync(null);
+            var remoteAddr = context.Request.RemoteEndPoint.Address;
+            Trace.WriteLine($"WEB: WS: Connected to {remoteAddr}");
+
             var sock = socketContext.WebSocket;
             Action<string> writeSock = (txtToWrite) =>
             {
-              //  Trace.WriteLine("WS: Send: " + txtToWrite.Length);
+                //  Trace.WriteLine("WS: Send: " + txtToWrite.Length);
 
                 var writeBytes = context.Request.ContentEncoding.GetBytes(txtToWrite);
                 sock.SendAsync(new ArraySegment<byte>(writeBytes), WebSocketMessageType.Text, true, CancellationToken.None);
             };
-            m_sockets.Add(writeSock);
+            lock (m_socketLock)
+            {
+                m_sockets.Add(writeSock);
+
+            }
             try
             {
                 while (sock.State == WebSocketState.Open)
                 {
                     byte[] receiveBuffer = new byte[1024 * 50];
                     int bufferStart = 0;
-                   
+
                     WebSocketReceiveResult receiveResult = null;
                     do
                     {
@@ -219,30 +238,27 @@ class SimpleHTTPServer
                         {
                             Trace.WriteLine("-----------------");
                             Trace.WriteLine(ret);
-                            Trace.WriteLine("-----------------");
-
-                            Trace.WriteLine("WS: Error: " + ex);
-                            Trace.WriteLine("-----------------");
-
+                            Trace.WriteLine("WEB: WS: Error: " + ex);
                         }
                     }
                 }
             }
             finally
             {
-                Trace.WriteLine("WS: Lost client");
-
-                m_sockets.Remove(writeSock);
+                Trace.WriteLine($"WEB: WS: Disconencted from {remoteAddr}");
+                lock (m_socketLock)
+                {
+                    m_sockets.Remove(writeSock);
+                }
             }
         }
-        catch(WebSocketException ex)
+        catch (WebSocketException ex)
         {
             context.Response.StatusCode = 500;
-
         }
         catch (Exception ex)
         {
-            Trace.WriteLine("WS: Error: " + ex);
+            Trace.WriteLine("WEB: WS: Error: " + ex);
             context.Response.StatusCode = 500;
 
             context.Response.Close();
@@ -256,7 +272,6 @@ class SimpleHTTPServer
         data.values = values;
         Broadcast(data);
     }
-
 
     private void OnGotSocketMessage(WSMessage msg)
     {
@@ -276,29 +291,43 @@ class SimpleHTTPServer
                             SimConnectViewModel.Instance.Write(v);
                         }
                     }
-                    // SimConnectViewModel.Instance.Write((string)data["name"], (string)data["unit"], double.Parse((string)data["value"]));
                     break;
                 default: throw new NotImplementedException();
             }
         }
         catch (Exception ex)
         {
-            Trace.WriteLine("WS: " + ex);
+            Trace.WriteLine("WEB: WS: " + ex);
         }
     }
 
     public static void Broadcast(WSMessage msg)
     {
-        var msgText = JsonConvert.SerializeObject(msg);
-        foreach (var client in m_sockets.ToArray())
+        lock (m_socketLock)
         {
-            client(msgText);
+            var msgText = JsonConvert.SerializeObject(msg);
+            foreach (var client in m_sockets.ToArray())
+            {
+                try
+                {
+                    client(msgText);
+                }
+                catch (ObjectDisposedException ex)  // Somehow disposed before finally above ?
+                {
+                    m_sockets.Remove(client);
+                }
+                catch (Exception ex)
+                {
+                    m_sockets.Remove(client);
+                    Trace.WriteLine("WS: " + ex);
+                }
+            }
         }
     }
 
     private int AssignPort()
     {
-        Trace.WriteLine("Probing for an empty port...");
+        Trace.WriteLine("WEB: Probing for an empty port...");
         // get an empty port
         var temporaryListener = new TcpListener(IPAddress.Loopback, 0);
         temporaryListener.Start();

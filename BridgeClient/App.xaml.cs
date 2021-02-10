@@ -42,9 +42,8 @@ namespace BridgeClient
                 mainWindowViewModel.SimConnect = _simConnect;
 
                 var window = new MainWindow { DataContext = mainWindowViewModel };
+                window.Closed += (_, __) => Environment.Exit(0);
                 window.Show();
-
-
             }
             catch (Exception ex)
             {

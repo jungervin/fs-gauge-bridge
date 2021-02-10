@@ -6,6 +6,8 @@ function CreateSimVarBridge() {
     let keys_data = [];
     let ws = null;
 
+    this.AllData = ALL;
+
     function doSend(data) {
         try {
             ws.send(JSON.stringify(data));
@@ -53,6 +55,10 @@ function CreateSimVarBridge() {
     
     function GetSimVarValue(name, unit, dataSource = "") 
     {
+        if (name.startsWith("A:")) {
+            name = name.substring(2);
+        }
+        name = name.toUpperCase();
         unit = unit.toLowerCase();
         AdviseSimVar(name, unit);
 
@@ -76,13 +82,18 @@ function CreateSimVarBridge() {
     }
 
     function SetSimVarValue(name, unit, value, dataSource = "") {
+        name = name.toUpperCase();
         unit = unit.toLowerCase();
+
+        if (name.startsWith("A:")) {
+            name = name.substring(2);
+        }
         if (name.startsWith("K:")) {
             doSend({type:"write", values: [ {name, unit, value: value.toString()} ]});
         } else {
             if (name in ALL) {
                 var currentValue = ALL[name];
-                if (value != currentValue) {
+                if (value !== currentValue) {
                     ALL[name] = value;
 
                     let newValue = {name, unit, value: value.toString()};
@@ -101,11 +112,13 @@ function CreateSimVarBridge() {
     }
 
     function GetGameVarValue(name, unit, param1 = 0, param2 = 0) {
-        if (!name && unit === "GlassCockpitSettings") {
+        name = name.toUpperCase();
+        unit = unit.toLowerCase();
+        if (!name && unit === "glasscockpitsettings") {
             var ret = {
                 AirSpeed: {
                     Initialized: true,
-                    ...window.cockpitcfg
+                    ...VCockpitExternal.cockpitCfg
                 }
             };
             return ret;
