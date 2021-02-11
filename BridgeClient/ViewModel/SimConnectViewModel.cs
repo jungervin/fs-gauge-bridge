@@ -265,6 +265,11 @@ namespace BridgeClient
             }
             else
             {
+                if (value.name.StartsWith("C:"))
+                {
+                    return;
+                }
+
                 lock (m_writeLock)
                 {
                     var existing = m_pendingWrites.FirstOrDefault(w => w.name == value.name && w.value != null);

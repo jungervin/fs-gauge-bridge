@@ -172,7 +172,7 @@ function CreateSimVarBridge() {
         // TODO: fs9gps
         for (var i = 0; i < simvars.length; i++)
         {
-            SimVarBridge.GetSimVarValue(simvars.wantedNames[i], simvars.wantedUnits[i]);
+          //  SimVarBridge.GetSimVarValue(simvars.wantedNames[i], simvars.wantedUnits[i]);
         }
     }
     

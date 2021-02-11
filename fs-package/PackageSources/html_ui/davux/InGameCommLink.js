@@ -64,7 +64,7 @@ function CreateInGameCommLink() {
                     // console.log("set data: " + d);
                     // setVar("data", d.charCodeAt(0));
 
-                    for (var i = 0; i < 10; i++) {
+                    for (var i = 0; i < 2; i++) {
                         setVar("data" + i, m_toSend[0].length > 0 ? m_toSend[0].shift() : 0);
                     }
                     setVar("remain", m_toSend[0].length);
@@ -108,7 +108,7 @@ function CreateInGameCommLink() {
                 //  var countLeft = getVar("remain");
                 //  console.log("catch data: " + String.fromCharCode(d) + " of " + countLeft + " remaining");
                 //  m_receiving.push(String.fromCharCode(d));
-                for (var i = 0; i < 10; i++) {
+                for (var i = 0; i < 2; i++) {
                     m_receiving.push(getVar("data" + i));
                 }
 
@@ -129,10 +129,10 @@ function CreateInGameCommLink() {
     function onInstalled() {
         console.log("InGameCommLink");
 
-        if (InGameRelay.Id == 1) {
-            console.log("InGameCommLink Online");
-            var ms = new MessageSender("GAME_TO_EXT");
-            var mc = new MessageCatcher("EXT_TO_GAME", (command) => {
+       // if (InGameRelay.Id == 1) {
+            console.log("InGameCommLink Online " + InGameRelay.Id);
+            var ms = new MessageSender("GAME_TO_EXT_" + InGameRelay.Id);
+            var mc = new MessageCatcher("EXT_TO_GAME_" + InGameRelay.Id, (command) => {
                 console.log(command);
                 try {
                     ms.send(JSON.stringify({
@@ -144,9 +144,9 @@ function CreateInGameCommLink() {
                     }));
                 }
             });
-        } else {
-            console.log("Not primary relay, no comm link");
-        }
+        //} else {
+       //     console.log("Not primary relay, no comm link");
+      //  }
     }
 
     setTimeout(onInstalled, 6000);
