@@ -28,7 +28,7 @@ enum ClientData {
 };
 
 struct WRITE_TO_SIM {
-    char name[256];
+    char name[128];
     int index;
     int isSet;
     double value;

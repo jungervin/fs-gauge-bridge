@@ -41,7 +41,7 @@ namespace BridgeClient.DataModel
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct WriteToSim
     {
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 256)]
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 128)]
         public byte[] name;
         public int index;
         public int isSet;
