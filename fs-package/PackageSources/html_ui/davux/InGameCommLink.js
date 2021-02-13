@@ -3,71 +3,23 @@ var InGameCommLink;
 function CreateInGameCommLink() {
     InGameCommLink = this;
 
-    function ReadChunkedString(arr) {
-        var ret = [];
-        for (var i = 0; i < arr.length; i++) {
-            var buffer = new ArrayBuffer(4);
-            new Uint32Array(buffer)[0] = arr[i];
-            var bytes = new Uint8Array(buffer);
-            for (var j = 0; j < 3; j++) {
-                if (bytes[j] > 0) {
-                    ret.push(String.fromCharCode(bytes[j]));
-                }
-            }
-        }
-        return ret.join("");
-      //  return arr.map(c => String.fromCharCode(c)).join("");
-    }
-
-    function ChunkString(str) {
-        var chunks = [];
-        for (var i = 0; i < str.length; i+=3) {
-            var buffer = new ArrayBuffer(4);
-            var bytes = new Uint8Array(buffer);
-            for (var j = 0; j < 3; j++) {
-                bytes[j] = (i + j) < str.length ? str.charCodeAt(i + j) : 0;
-            }
-            chunks.push(new Uint32Array(buffer)[0]);
-        }
-        return chunks;
-       // return str.split("").map(c => c.charCodeAt(0));
-    }
-
-
-    function MessageSender(channelName) {
-        var getVar = function (name) {
-            return SimVar.GetSimVarValue("L:Bridge_" + channelName + "_" + name, "number");
-        }
-        var setVar = function (name, value) {
-       //     console.log("SET: L:Bridge_" + channelName + "_" + name + ": " + value);
-            SimVar.SetSimVarValue("L:Bridge_" + channelName + "_" + name, "number", value).then(() => {
-              //  console.log("VERIFY: " + getVar(name));
-
-            });
-
-        }
-
+    function MessageSender(channelName, dataSize) {
+        var varHelper = new SharedUtils.VarHelper("L:Bridge_" + channelName);
         var m_toSend = [];
         this.send = function (msg) {
-            m_toSend.push(ChunkString(msg));
+            m_toSend.push(SharedUtils.ChunkString(msg));
         }
 
         var lastRead = -1;
         var pump = function () {
             if (m_toSend.length > 0) {
-                var didRead = getVar("didRead");
-                var shouldRead = getVar("shouldRead");
-                //  console.log("did: " + didRead + " should: " + shouldRead);
+                var didRead = varHelper.get("didRead");
                 if (didRead != lastRead) {
-                    // set data
-                    // var d = m_toSend[0].shift();
-                    // console.log("set data: " + d);
-                    // setVar("data", d.charCodeAt(0));
 
-                    for (var i = 0; i < 2; i++) {
-                        setVar("data" + i, m_toSend[0].length > 0 ? m_toSend[0].shift() : 0);
+                    for (var i = 0; i < dataSize; i++) {
+                        varHelper.set("data" + i, m_toSend[0].length > 0 ? m_toSend[0].shift() : 0);
                     }
-                    setVar("remain", m_toSend[0].length);
+                    varHelper.set("remain", m_toSend[0].length);
 
                     if (m_toSend[0].length == 0) {
                         console.log("Send finished");
@@ -75,83 +27,116 @@ function CreateInGameCommLink() {
                     }
 
                     lastRead = didRead;
-                    setVar("shouldRead", didRead + 1);
-                }
-                else {
-                    //console.log("waiting ");
+                    varHelper.set("shouldRead", didRead + 1);
                 }
             }
-
             requestAnimationFrame(pump);
         }
-
-        //	setVar("didRead", 0);
-        //	setVar("shouldRead", 0);
-
         requestAnimationFrame(pump);
     }
 
-    function MessageCatcher(channelName, recv) {
-        var getVar = function (name) {
-            return SimVar.GetSimVarValue("L:Bridge_" + channelName + "_" + name, "number");
-        }
-        var setVar = function (name, value) {
-            return SimVar.SetSimVarValue("L:Bridge_" + channelName + "_" + name, "number", value);
-        }
+    function MessageCatcher(channelName, dataSize, recv) {
+        var varHelper = new SharedUtils.VarHelper("L:Bridge_" + channelName);
 
         var m_receiving = [];
         var pumpMessages = function () {
-            var didRead = getVar("didRead");
-            var shouldRead = getVar("shouldRead");
+            var didRead = varHelper.get("didRead");
+            var shouldRead = varHelper.get("shouldRead");
             if (shouldRead != didRead) {
-                //  var d = getVar("data");
-                //  var countLeft = getVar("remain");
-                //  console.log("catch data: " + String.fromCharCode(d) + " of " + countLeft + " remaining");
-                //  m_receiving.push(String.fromCharCode(d));
-                for (var i = 0; i < 2; i++) {
-                    m_receiving.push(getVar("data" + i));
+                for (var i = 0; i < dataSize; i++) {
+                    m_receiving.push(varHelper.get("data" + i));
                 }
 
-                if (getVar("remain") == 0) {
-                    recv(ReadChunkedString(m_receiving));
+                if (varHelper.get("remain") == 0) {
+                    try {
+                        recv(SharedUtils.ReadChunkedString(m_receiving));
+                    } catch (ex) {
+                        console.error(ex);
+                    }
+
                     m_receiving = [];
                 }
 
-                setVar("didRead", shouldRead);
+                varHelper.set("didRead", shouldRead);
             }
             requestAnimationFrame(pumpMessages);
         }
-        //  setVar("didRead", 0);
-        //  setVar("shouldRead", 0);
         requestAnimationFrame(pumpMessages);
     }
 
-    function onInstalled() {
-        console.log("InGameCommLink");
+    function RpcChannel(sendData) {
 
-       // if (InGameRelay.Id == 1) {
-            console.log("InGameCommLink Online " + InGameRelay.Id);
-            var ms = new MessageSender("GAME_TO_EXT_" + InGameRelay.Id);
-            var mc = new MessageCatcher("EXT_TO_GAME_" + InGameRelay.Id, (command) => {
-                console.log(command);
-                try {
-                    ms.send(JSON.stringify({
-                        ret: eval(command),
-                    }));
-                } catch(ex) {
-                    ms.send(JSON.stringify({
-                        error: ex,
-                    }));
-                }
-            });
-        //} else {
-       //     console.log("Not primary relay, no comm link");
-      //  }
+        let m_callbacks = {};
+
+        let MakeCallback = (obj) => {
+            return () => {
+                sendData({
+                    cb: 1,
+                    id: obj.id,
+                    args: JSON.stringify(Array.prototype.slice.call(arguments))
+                });
+            };
+        };
+
+        let cohernet_on = (args) => {
+            return Coherent.on(args[0], MakeCallback(args[1]));
+        };
+
+        let cohernet_trigger = (args) => {
+            return Coherent.trigger.apply(null, args);
+        };
+
+        let cohernet_call = (args) => {
+            return Coherent.call(args[0], args[1]);
+        };
+
+        let processMessage = async (cmd) => {
+            if (cmd.command === "eval") {
+                return eval(cmd.args[0]);
+            } else if (cmd.command === "coherent_on") {
+                return cohernet_on(cmd.args);
+            } else if (cmd.command === "coherent_trigger") {
+                return cohernet_trigger(cmd.args);
+            } else if (cmd.command === "coherent_call") {
+                return cohernet_call(cmd.args);
+            } else {
+                throw new Error('unsupported command: ' + cmd.command);
+            }
+        };
+
+        this.onMessage = async (msg) => {
+            console.log(JSON.stringify(msg));
+            try {
+                var ret = await processMessage(msg.cmd);
+                sendData({
+                    ret,
+                    seq: msg.seq,
+                });
+            } catch (ex) {
+                console.error(ex);
+                sendData({
+                    error: ex,
+                    seq: msg.seq,
+                });
+            }
+        };
+    }
+
+    function onInstalled() {
+        console.log("InGameCommLink onInstalled: " + InGameRelay.Id);
+
+        SimVar.SetSimVarValue("L:Bridge_" + InGameRelay.Id, "number", 1);
+
+        const comChannelWidth = InGameRelay.Id == 1 ? 10 : 2;
+        var sender = new MessageSender("GAME_TO_EXT_" + InGameRelay.Id, comChannelWidth);
+        var rpc = new RpcChannel((obj) => sender.send(JSON.stringify(obj)));
+        new MessageCatcher("EXT_TO_GAME_" + InGameRelay.Id, comChannelWidth, (data) => rpc.onMessage(JSON.parse(data)));
+
+        sender.send(JSON.stringify({reset:InGameCommLink.Version}));
     }
 
     setTimeout(onInstalled, 6000);
 
-    //  this.MessageCatcher = MessageCatcher;
-    //	this.MessageSender = MessageSender;
+    this.Version = 44;
 }
 InGameCommLink = new CreateInGameCommLink();

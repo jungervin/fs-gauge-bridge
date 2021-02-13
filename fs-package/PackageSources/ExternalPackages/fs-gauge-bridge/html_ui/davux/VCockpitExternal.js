@@ -7,6 +7,16 @@ function CreateVCockpitExternal() {
     function normalToFixed(num, p) { return num.toFixed(p); }
     window.fastToFixed = normalToFixed;
 
+    window.top["g_nameZObject"] = {
+      GetNameZ: function(inputStr) {
+      //  console.log("## GetNameZ: " + inputStr);
+        return {"__Type":"Name_Z",
+        "idLow":1737084232,
+        "idHigh":3154515155,
+        "str":"13548539427198455112"}
+      }
+    };
+
     // Tell everything that we're ready
     BaseInstrument.allInstrumentsLoaded = true;
     SimVarBridge.IsReady = function () { return true; };
@@ -66,6 +76,8 @@ function CreateVCockpitExternal() {
 
     installShims();
     CreatePanel();
+    CommLinkExternal.Initialize();
+    fs9gps.Initialize();
   });
 }
 VCockpitExternal = new CreateVCockpitExternal();

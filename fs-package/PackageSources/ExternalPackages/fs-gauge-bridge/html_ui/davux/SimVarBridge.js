@@ -75,6 +75,10 @@ function CreateSimVarBridge() {
                 break;
         }
 
+        if (name.startsWith("C:")) {
+         //   console.log("READ: SetSimVarValue " + name);
+        } 
+
         if (name in ALL) {
             if (unit == "bool") {
                 return !!(ALL[name]);
@@ -88,11 +92,17 @@ function CreateSimVarBridge() {
         name = SanitizeName(name);
         unit = SanitizeUnit(unit);
 
-        if (!name.startsWith("K:")) {
-            // Keys aren't read and need to be sent immediately
-            ALL[name] = value;
+        if (name.startsWith("C:")) {
+        //    console.log("WRITE: SetSimVarValue " + name);
+        } else {
+            if (!name.startsWith("K:")) {
+                // Keys aren't read and need to be sent immediately
+                ALL[name] = value;
+            }
+            doSend({type:"write", values: [ {name, unit, value: value} ]});
         }
-        doSend({type:"write", values: [ {name, unit, value: value} ]});
+
+
         return new Promise(function (resolve, reject) { resolve(); });
     }
 
