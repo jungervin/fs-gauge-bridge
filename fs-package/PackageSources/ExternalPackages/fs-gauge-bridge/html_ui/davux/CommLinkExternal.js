@@ -132,8 +132,9 @@ function CreateCommLinkExternal() {
                         console.log("Panel reset: " + receiver.name);
                     }
                 }catch(e) {
-                    console.log("data: " + m);
-                    console.error(e);
+                    // We get partial messages and this ends up being spammy. Not cool hiding the error though.
+                   // console.log("data: " + m);
+                   // console.error(e);
                 }
 
             });

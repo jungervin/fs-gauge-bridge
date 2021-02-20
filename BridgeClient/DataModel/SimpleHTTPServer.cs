@@ -73,7 +73,8 @@ class SimpleHTTPServer
         }
         catch(Exception ex)
         {
-            MessageBox.Show("Unable to bind webserver:\n" + ex);
+            MessageBox.Show($"Unable to bind webserver to {Url}:\n{ex}\n\nYou may add a `netsh urlacl` exception or run as elevated to fix this problem.");
+            Environment.Exit(0);
         }
         while (true)
         {

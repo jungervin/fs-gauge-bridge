@@ -130,8 +130,19 @@ function CreateSimVarBridge() {
                 AirSpeed: {
                     Initialized: true,
                     ...VCockpitExternal.cockpitCfg
+                },
+                FlapsLevels: {
+                    initialised: false,
                 }
             };
+        }
+
+        // Need to plumb this through
+        if (name == "AIRCRAFT FLAPS HANDLE ANGLE") {
+            return param2 * 10;
+        }
+        else if (name == "FLIGHT NAVDATA DATE RANGE") {
+            return ""; // from sim debug.
         }
 
         for (let gameVar of InGameRelay.GameVars) {
@@ -150,7 +161,7 @@ function CreateSimVarBridge() {
 
         // Fix by adding to the list in InGameRelay.
         console.log('### GetGameVarValue: ' + name + ' ' + unit);
-        return {};
+        return 0;
     }
 
     function GetGlobalVarValue(name, unit) {
