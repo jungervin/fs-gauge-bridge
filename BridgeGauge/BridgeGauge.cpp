@@ -8,7 +8,7 @@ class BridgeGauge
 private:
     HANDLE hSimConnect = 0;
     int m_variableCount = 0;
-    int m_lastCommandId = 0;
+    int m_lastCommandId = 9999;
     ID m_variableId[VAR_COUNT];
 
     static void s_DispatchProc(SIMCONNECT_RECV* pData, DWORD cbData, void* pContext);
@@ -36,7 +36,7 @@ struct WRITE_TO_SIM {
 };
 
 struct READ_FROM_SIM {
-    double value[100];
+    double value[200];
     int valueCount;
     int lastCommandId;
 };

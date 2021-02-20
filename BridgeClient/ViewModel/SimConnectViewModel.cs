@@ -153,7 +153,6 @@ namespace BridgeClient
             {
                 // Trace.WriteLine("Got unexpectyed " + data.lastCommandId);
             }
-
         }
 
         private void OnSimWriteCompleted()

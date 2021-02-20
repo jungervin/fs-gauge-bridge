@@ -32,7 +32,7 @@ namespace BridgeClient.DataModel
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct ReadFromSim
     {
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 100)]
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 200)]
         public double[] data;
         public int valueCount;
         public int lastCommandId;
