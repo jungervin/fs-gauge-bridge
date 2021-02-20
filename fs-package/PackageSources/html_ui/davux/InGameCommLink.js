@@ -51,6 +51,7 @@ function CreateInGameCommLink() {
                     try {
                         recv(SharedUtils.ReadChunkedString(m_receiving));
                     } catch (ex) {
+                        console.log("Error unchunking");
                         console.error(ex);
                     }
 
@@ -61,7 +62,14 @@ function CreateInGameCommLink() {
             }
             requestAnimationFrame(pumpMessages);
         }
-        requestAnimationFrame(pumpMessages);
+
+     //   Promise.all([
+     //       varHelper.set("didRead", 0),
+      //      varHelper.set("shouldRead", 0),
+      //  ]).then(() => {
+            console.log("MessageCatcher started");
+            requestAnimationFrame(pumpMessages);
+      //  });
     }
 
     function RpcChannel(sendData) {
@@ -69,11 +77,11 @@ function CreateInGameCommLink() {
         let m_callbacks = {};
 
         let MakeCallback = (obj) => {
-            return () => {
+            return (_Values) => {
                 sendData({
                     cb: 1,
                     id: obj.id,
-                    args: JSON.stringify(Array.prototype.slice.call(arguments))
+                    args: _Values,
                 });
             };
         };
@@ -83,24 +91,44 @@ function CreateInGameCommLink() {
         };
 
         let cohernet_trigger = (args) => {
-            return Coherent.trigger.apply(null, args);
+            return Coherent.trigger.apply(Coherent, args);
         };
 
         let cohernet_call = (args) => {
-            return Coherent.call(args[0], args[1]);
+            return Coherent.call.apply(Coherent, args);
+        };
+
+        let getsimvarrayvalues = (args) => {
+
+            var batchWrongType = args[0];
+            var batch = new SimVar.SimVarBatch(batchWrongType.simVarCount, batchWrongType.simVarIndex);
+            for (let i = 0; i < batchWrongType.wantedNames.length; i++) {
+                batch.add(batchWrongType.wantedNames[i],
+                    batchWrongType.wantedUnits[i],
+                    batchWrongType.wantedTypes[i]);
+            }
+
+            var cb = MakeCallback(args[1]);
+            console.log("B:: " + JSON.stringify(batch));
+            return SimVar.GetSimVarArrayValues(batch, (_Values) => {
+                console.log("GOT: " + JSON.stringify(_Values));
+                cb(_Values);
+            });
         };
 
         let processMessage = async (cmd) => {
-            if (cmd.command === "eval") {
-                return eval(cmd.args[0]);
-            } else if (cmd.command === "coherent_on") {
-                return cohernet_on(cmd.args);
-            } else if (cmd.command === "coherent_trigger") {
-                return cohernet_trigger(cmd.args);
-            } else if (cmd.command === "coherent_call") {
-                return cohernet_call(cmd.args);
+            if (cmd.c === "eval") {
+                return eval(cmd.a[0]);
+            } else if (cmd.c === "c_o") {
+                return cohernet_on(cmd.a);
+            } else if (cmd.c === "c_t") {
+                return cohernet_trigger(cmd.a);
+            } else if (cmd.c === "c_c") {
+                return cohernet_call(cmd.a);
+            } else if (cmd.c === "gsa") {
+                return getsimvarrayvalues(cmd.a);
             } else {
-                throw new Error('unsupported command: ' + cmd.command);
+                throw new Error('unsupported command: ' + cmd.c);
             }
         };
 
@@ -113,6 +141,7 @@ function CreateInGameCommLink() {
                     seq: msg.seq,
                 });
             } catch (ex) {
+                console.log("Error while processing: " + JSON.stringify(msg));
                 console.error(ex);
                 sendData({
                     error: ex,
@@ -123,11 +152,11 @@ function CreateInGameCommLink() {
     }
 
     function onInstalled() {
-        console.log("InGameCommLink onInstalled: " + InGameRelay.Id);
+        console.log("InGameCommLink onInstalled: " + InGameRelay.Id + " v: " + InGameCommLink.Version);
 
         SimVar.SetSimVarValue("L:Bridge_" + InGameRelay.Id, "number", 1);
 
-        const comChannelWidth = InGameRelay.Id == 1 ? 10 : 2;
+        const comChannelWidth = InGameRelay.Id == 1 ? 4 : 2;
         var sender = new MessageSender("GAME_TO_EXT_" + InGameRelay.Id, comChannelWidth);
         var rpc = new RpcChannel((obj) => sender.send(JSON.stringify(obj)));
         new MessageCatcher("EXT_TO_GAME_" + InGameRelay.Id, comChannelWidth, (data) => rpc.onMessage(JSON.parse(data)));
@@ -137,6 +166,6 @@ function CreateInGameCommLink() {
 
     setTimeout(onInstalled, 6000);
 
-    this.Version = 44;
+    this.Version = 45;
 }
 InGameCommLink = new CreateInGameCommLink();

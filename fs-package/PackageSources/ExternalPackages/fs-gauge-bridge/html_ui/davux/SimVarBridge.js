@@ -76,10 +76,8 @@ function CreateSimVarBridge() {
         }
 
         if (name.startsWith("C:")) {
-         //   console.log("READ: SetSimVarValue " + name);
-        } 
-
-        if (name in ALL) {
+         //   return fs9gps.GetSimVarValue(name, unit);
+        } else if (name in ALL) {
             if (unit == "bool") {
                 return !!(ALL[name]);
             }
@@ -93,7 +91,7 @@ function CreateSimVarBridge() {
         unit = SanitizeUnit(unit);
 
         if (name.startsWith("C:")) {
-        //    console.log("WRITE: SetSimVarValue " + name);
+          //  return fs9gps.SetSimVarValue(name, unit, value);
         } else {
             if (!name.startsWith("K:")) {
                 // Keys aren't read and need to be sent immediately
@@ -178,12 +176,7 @@ function CreateSimVarBridge() {
     }
 
     function GetSimVarArrayValues(simvars, callback, dataSource = "") {
-        // console.error('## GetSimVarArrayValues: ' + JSON.stringify(simvars));
-        // TODO: fs9gps
-        for (var i = 0; i < simvars.length; i++)
-        {
-          //  SimVarBridge.GetSimVarValue(simvars.wantedNames[i], simvars.wantedUnits[i]);
-        }
+        return fs9gps.GetSimVarArrayValues(simvars, callback);
     }
     
 

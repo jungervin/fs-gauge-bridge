@@ -58,7 +58,7 @@ function CreateVCockpitExternal() {
       vPosAndSize: { x: 0, y: 0, w: Number(m.htmlgauge00.height), z: Number(m.htmlgauge00.width) },
     }));
 
-    let selectedId = window.location.search.startsWith("?id=") ? Number(window.location.search.substr(4, 1)) : 0;
+    let selectedId = window.location.search.startsWith("?id=") ? Number(window.location.search.substr(4, 2)) : 0;
     let selectedInstrument = allInstruments[selectedId];
     let selectedInstrumentData = all_data.gauges[selectedId];
     if (!selectedInstrument) {

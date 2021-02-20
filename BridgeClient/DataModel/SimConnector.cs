@@ -135,7 +135,10 @@ namespace BridgeClient.DataModel
 
         private void OnSimConnectRecvOpen(SimConnect sender, SIMCONNECT_RECV_OPEN data)
         {
-            Trace.WriteLine("SIMCONNECT: Connected to sim");
+            var appVer = new Version((int)data.dwApplicationVersionMajor, (int)data.dwApplicationVersionMinor, (int)data.dwApplicationBuildMajor, (int)data.dwApplicationBuildMinor);
+            var simConnectVer = new Version((int)data.dwSimConnectVersionMajor, (int)data.dwSimConnectVersionMinor, (int)data.dwSimConnectBuildMajor, (int)data.dwSimConnectBuildMinor);
+
+            Trace.WriteLine($"SIMCONNECT: Connected to {data.szApplicationName}: {appVer} {simConnectVer}");
             Connected(true);
             m_afterConnected();
         }

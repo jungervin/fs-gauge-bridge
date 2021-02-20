@@ -13,7 +13,7 @@ function CreateCommLinkExternal() {
 
         this.send = function (cmd) {
             var msg = {
-                cmd,
+                cmd: cmd,
                 seq: m_seq++
             }
 
@@ -101,6 +101,12 @@ function CreateCommLinkExternal() {
             }
         };
 
+       // varHelper.set("didRead", 0);
+       // varHelper.set("shouldRead", 0);
+
+        // Need to know when a set over the bridge has completed.
+        // Hack to avoid reading the first partial message from last session.
+      //  setTimeout(() => requestAnimationFrame(pumpMessages), 5 * 1000);
 
         requestAnimationFrame(pumpMessages);
     }
@@ -110,20 +116,33 @@ function CreateCommLinkExternal() {
         CommLinkExternal.GAME_TO_EXT = [];
 
         VCockpitExternal.panelCfg.forEach((data, i) => {
-           // const name = VCockpitExternal.panelCfg[i].htmlgauge00.path;
             const ix = Number(i) + 1;
-            const comChannelWidth = ix == 1 ? 10 : 2;
+            const comChannelWidth = ix == 1 ? 4 : 2;
             const sender = new MessageSender("EXT_TO_GAME_" + ix, comChannelWidth);
             const receiver = new MessageCatcher("GAME_TO_EXT_" + ix, comChannelWidth);
+            receiver.name = VCockpitExternal.panelCfg[i].htmlgauge00.path;
             CommLinkExternal.EXT_TO_GAME[i] = sender;
             CommLinkExternal.GAME_TO_EXT[i] = receiver;
             receiver.on('msg', sender.onResponse); // async callbacks
+
+            receiver.on('msg', (m) => {
+                try {
+                    let msg = JSON.parse(m);
+                    if (msg.reset) {
+                        console.log("Panel reset: " + receiver.name);
+                    }
+                }catch(e) {
+                    console.log("data: " + m);
+                    console.error(e);
+                }
+
+            });
         });
 
         Coherent.Initialize(CommLinkExternal.EXT_TO_GAME[0], CommLinkExternal.GAME_TO_EXT[0]);
 
         window.reval = async (msg, idx = 0) => {
-            return await CommLinkExternal.EXT_TO_GAME[idx].send({ command: 'eval', args: [msg] });
+            return await CommLinkExternal.EXT_TO_GAME[idx].send({ c: 'eval', a: [msg] });
         }
         window.rreload = async (idx = 0) => {
             await window.reval("window.location.reload()", idx);

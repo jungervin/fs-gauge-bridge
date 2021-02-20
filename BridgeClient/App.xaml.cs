@@ -31,6 +31,7 @@ namespace BridgeClient
                 Exit += (_, __) => vfs.UnmapSources();
 
                 CfgManager.Initialize(vfs);
+                CfgManager.PrintReport();
 
                 // Access is denied
                 // netsh http add urlacl url="http://+:4200/" user=everyone

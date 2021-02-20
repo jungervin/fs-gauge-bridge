@@ -2791,7 +2791,7 @@ var ViewListener;
             if (this.m_handlers) {
                 for (let handler of this.m_handlers) {
                     if (handler.name == name && handler.callback == callback && handler.context == context) {
-                        handler.globalEventHandler.clear();
+                      //  handler.globalEventHandler.clear();
                     }
                 }
             }

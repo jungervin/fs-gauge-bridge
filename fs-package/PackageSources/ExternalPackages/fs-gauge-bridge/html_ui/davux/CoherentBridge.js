@@ -27,8 +27,8 @@ function CreateCoherentBridge() {
       //  console.log("coherent.on " + eventName);
         return;
         send({
-            command: 'coherent_on',
-            args: [eventName, SerializeCallback(callback)]
+            c: 'c_o',
+            a: [eventName, SerializeCallback(callback)]
         });
         // callback: _sender, _event
         //  console;.log("coherent.on " + eventName);
@@ -39,70 +39,65 @@ function CreateCoherentBridge() {
     //    console.log("coherent.on " + eventName);
         return;
         send({
-            command: 'coherent_on',
-            args: [eventName, SerializeCallback(callback)]
+            c: 'c_o',
+            a: [eventName, SerializeCallback(callback)]
         });
         // callback: _sender, _event
         //  console;.log("coherent.on " + eventName);
     }
     this.trigger = function () {
-      //  console.log("coherent.trigger " + arguments[0]);
-        return; 
+       // console.log("coherent.trigger " + arguments[0]);
+       return;
         send({
-            command: 'coherent_trigger',
-            args: Array.prototype.slice.call(arguments)
+            c: 'c_t',
+            a: Array.prototype.slice.call(arguments)
         });
     };
 
-    this.call = async (eventName, dataValue, anotherPromise) => {
+    this.call = (...args) => {
           
-        //  return new Promise((a, r) => {});
+          return new Promise((a, r) => {});
 
-      //  if (m_inflightCalls[eventName]) {
+        const eventName = args[0];
+        if (m_inflightCalls[eventName]) {
             return new Promise((a, r) => { });
-       // }
-        console.log("coherent.call " + eventName);
-        m_inflightCalls[eventName] = true;
-        var ret = await m_sender.send({
-            command: 'coherent_call',
-            args: [eventName, dataValue]
-        });
-        console.log("coherent.call-complete " + eventName);
-        console.log(ret);
-
-        m_inflightCalls[eventName] = false;
-        if (anotherPromise === undefined) {
-            return Promise.resolve(ret);
-        } else {
-            return anotherPromise(ret);
         }
+        
+      //  console.log("coherent.call " + eventName);
+        m_inflightCalls[eventName] = true;
+        return m_sender.send({
+            c: 'c_c',
+            a: Array.prototype.slice.call(args)
+        }).then((ret) => {
+          //  console.log("coherent.call[" + eventName + "] " + JSON.stringify(ret));
+            m_inflightCalls[eventName] = false;
+            return ret;
+        });
     };
 
-
-    this.call333 = async (eventName, dataValue, anotherPromise) => {
-        //    console.log("coherent.call " + eventName);
-        return new Promise((a, r) => { });
-        var sendPromise = m_sender.send({
-            command: 'coherent_call',
-            args: [eventName, dataValue]
-        });
-        if (anotherPromise === undefined) {
-            return sendPromise;
-        } else {
-            await sendPromise;
-            return anotherPromise;
-        }
-    }
     this.translate = (txt) => txt;
 
+    this.GetSimVarArrayValues = function (simvars, callback) {
+        return;
+        // console.log("GetSimVarArrayValues " + simvars);
+        
+          send({
+              c: 'gsa',
+              a: [simvars, SerializeCallback(callback)]
+          });
+          // callback: _sender, _event
+          //  console;.log("coherent.on " + eventName);
+      }
+
+
     let onCallback = (msg) => {
-        console.log("coherent.onCallback " + msg.id);
+        console.log("coherent.onCallback " + JSON.stringify(msg));
         m_callbacks[msg.id].apply(m_callbacks[msg.id], msg.args);
     };
 
     this.Initialize = function (sender, receiver) {
         m_sender = sender;
-        receiver.on('msg', (msg) => {
+        receiver.on('msg', (data) => {
             try {
                 var msg = JSON.parse(data);
                 if (!msg) { return; }
